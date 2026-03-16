@@ -1,10 +1,12 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import MapView from './components/Map/MapView'
 import DarkModeToggle from './components/Map/DarkModeToggle'
 import Sidebar from './components/Sidebar/Sidebar'
+import StopHub from './components/StopHub/StopHub'
+import TextViewer from './components/TextViewer/TextViewer'
 import WindowTaskbar from './components/FloatingWindow/WindowTaskbar'
 import useStepsData from './hooks/useStepsData'
-import { WindowManagerProvider } from './hooks/useWindowManager'
+import { WindowManagerProvider, useWindowManager } from './hooks/useWindowManager'
 
 function App() {
   const [darkMode, setDarkMode] = useState(false)
@@ -21,6 +23,18 @@ function AppContent({ darkMode, setDarkMode }) {
   const { steps, meta, locations, loading, error } = useStepsData()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [activeStepId, setActiveStepId] = useState(null)
+  const { windows, openWindow, closeWindow } = useWindowManager()
+  const prevHubIdRef = useRef(null)
+  const windowsRef = useRef(windows)
+  windowsRef.current = windows
+
+  // Index steps by id for O(1) lookup
+  const stepsById = useMemo(() => {
+    if (!steps) return {}
+    const map = {}
+    for (const s of steps) map[s.id] = s
+    return map
+  }, [steps])
 
   // Resize map on mount + whenever sidebar toggles
   useEffect(() => {
@@ -35,6 +49,22 @@ function AppContent({ darkMode, setDarkMode }) {
 
   const handleStepClick = useCallback((step) => {
     setActiveStepId(step.id)
+
+    const newHubId = `stop-hub-${step.id}`
+
+    // Close previous hub ONLY if it's not minimized
+    if (prevHubIdRef.current && prevHubIdRef.current !== newHubId) {
+      const prevWin = windowsRef.current.find((w) => w.id === prevHubIdRef.current)
+      if (prevWin && !prevWin.minimized) {
+        closeWindow(prevHubIdRef.current)
+      }
+    }
+    prevHubIdRef.current = newHubId
+
+    // Open new hub
+    openWindow({ id: newHubId, type: 'stop-hub', title: step.name, stepId: step.id })
+
+    // Fly to step
     const map = mapViewRef.current?.getMap()
     if (map) {
       map.flyTo({
@@ -43,7 +73,7 @@ function AppContent({ darkMode, setDarkMode }) {
         duration: 1200,
       })
     }
-  }, [])
+  }, [openWindow, closeWindow])
 
   if (error) {
     return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'red' }}>Erreur de chargement des données</div>
@@ -55,9 +85,13 @@ function AppContent({ darkMode, setDarkMode }) {
 
   const sidebarWidth = sidebarCollapsed ? 0 : 320
 
+  // Collect all open StopHub and TextViewer windows
+  const hubWindows = windows.filter((w) => w.type === 'stop-hub')
+  const textWindows = windows.filter((w) => w.type === 'text-viewer')
+
   return (
     <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
-      {/* Sidebar wrapper — fixed width, no shrink */}
+      {/* Sidebar */}
       <div
         style={{
           flex: 'none',
@@ -77,7 +111,7 @@ function AppContent({ darkMode, setDarkMode }) {
         />
       </div>
 
-      {/* Map wrapper — takes all remaining space */}
+      {/* Map */}
       <div style={{ flex: 1, height: '100%', position: 'relative', minWidth: 0 }}>
         <MapView
           ref={mapViewRef}
@@ -87,13 +121,45 @@ function AppContent({ darkMode, setDarkMode }) {
           locations={locations}
           onStepClick={handleStepClick}
         />
-
-        {/* Collapse/expand chevron on map edge */}
         <SidebarToggle
           collapsed={sidebarCollapsed}
           darkMode={darkMode}
           onToggle={() => setSidebarCollapsed((c) => !c)}
         />
+      </div>
+
+      {/* Floating windows layer — pointer-events:none so map stays interactive */}
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 100,
+        pointerEvents: 'none',
+      }}>
+        {/* Render ALL open StopHub windows (active + minimized) */}
+        {hubWindows.map((win) => {
+          const step = stepsById[win.stepId]
+          if (!step) return null
+          return (
+            <StopHub
+              key={win.id}
+              step={step}
+              zoneColor={meta.zones[step.zone]?.color}
+              darkMode={darkMode}
+            />
+          )
+        })}
+
+        {/* Render ALL open TextViewer windows */}
+        {textWindows.map((win) => {
+          const stepId = parseInt(win.id.replace('text-viewer-', ''), 10)
+          const step = stepsById[stepId]
+          if (!step) return null
+          return (
+            <TextViewer
+              key={win.id}
+              step={step}
+              darkMode={darkMode}
+            />
+          )
+        })}
       </div>
 
       <DarkModeToggle onChange={setDarkMode} />
