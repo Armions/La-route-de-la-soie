@@ -7,11 +7,13 @@ import { applyTheme, TRAVERSED_COUNTRIES } from '../../utils/mapTheme'
 const CENTER = [50, 55]
 const ZOOM = 3
 
-export default forwardRef(function MapView({ darkMode }, ref) {
+export default forwardRef(function MapView({ darkMode, steps, meta, locations, onStepClick }, ref) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const readyRef = useRef(false)
   const segmentCountRef = useRef(0)
+  const onStepClickRef = useRef(onStepClick)
+  onStepClickRef.current = onStepClick
 
   useImperativeHandle(ref, () => ({
     getMap: () => mapRef.current,
@@ -25,6 +27,8 @@ export default forwardRef(function MapView({ darkMode }, ref) {
   }, [darkMode])
 
   useEffect(() => {
+    if (!steps || !meta || !locations) return
+
     mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN
 
     const map = new mapboxgl.Map({
@@ -120,12 +124,12 @@ export default forwardRef(function MapView({ darkMode }, ref) {
           type: 'hillshade',
           source: 'mapbox-dem',
           paint: {
-            'hillshade-exaggeration': 0.55,
-            'hillshade-shadow-color': '#666666',
+            'hillshade-exaggeration': 0.75,
+            'hillshade-shadow-color': '#444444',
             'hillshade-highlight-color': '#fafafa',
             'hillshade-illumination-direction': 315,
             'hillshade-illumination-anchor': 'map',
-            'hillshade-accent-color': '#aaaaaa',
+            'hillshade-accent-color': '#888888',
           },
         },
         firstSymbolId
@@ -168,155 +172,145 @@ export default forwardRef(function MapView({ darkMode }, ref) {
           1,
           0.15,
         ])
-        // Regions: only in traversed countries
-        map.setPaintProperty('state-label', 'text-opacity', [
-          'case',
-          ['in', ['get', 'iso_3166_1'], ['literal', TRAVERSED_COUNTRIES]],
-          0.8,
-          0,
-        ])
+        // Regions: hide entirely — too noisy (especially Chinese provinces)
+        map.setLayoutProperty('state-label', 'visibility', 'none')
       } catch (_) {}
 
       // ============================================================
-      // E. ROUTE TRACE + MARKERS
+      // E. ROUTE TRACE + MARKERS (data from props)
       // ============================================================
-      Promise.all([
-        fetch('/data/locations.json').then((r) => r.json()),
-        fetch('/data/data_model.json').then((r) => r.json()),
-      ]).then(([locData, dataModel]) => {
-        const zones = dataModel.meta.zones
-        const segments = buildRouteSegments(
-          locData.locations,
-          dataModel.steps,
-          zones
+      const zones = meta.zones
+      const segments = buildRouteSegments(locations, steps, zones)
+
+      segmentCountRef.current = segments.length
+      segments.forEach((seg, i) => {
+        const sourceId = `route-segment-${i}`
+        map.addSource(sourceId, { type: 'geojson', data: seg.geojson })
+
+        map.addLayer(
+          {
+            id: `route-halo-${i}`,
+            type: 'line',
+            source: sourceId,
+            layout: { 'line-join': 'round', 'line-cap': 'round' },
+            paint: {
+              'line-color': '#ffffff',
+              'line-width': 6,
+              'line-opacity': 0.7,
+            },
+          },
+          firstSymbolId
         )
 
-        segmentCountRef.current = segments.length
-        segments.forEach((seg, i) => {
-          const sourceId = `route-segment-${i}`
-          map.addSource(sourceId, { type: 'geojson', data: seg.geojson })
-
-          map.addLayer(
-            {
-              id: `route-halo-${i}`,
-              type: 'line',
-              source: sourceId,
-              layout: { 'line-join': 'round', 'line-cap': 'round' },
-              paint: {
-                'line-color': '#ffffff',
-                'line-width': 5,
-                'line-opacity': 0.4,
-              },
+        map.addLayer(
+          {
+            id: `route-line-${i}`,
+            type: 'line',
+            source: sourceId,
+            layout: { 'line-join': 'round', 'line-cap': 'round' },
+            paint: {
+              'line-color': seg.color,
+              'line-width': 2.5,
+              'line-opacity': 0.9,
             },
-            firstSymbolId
-          )
-
-          map.addLayer(
-            {
-              id: `route-line-${i}`,
-              type: 'line',
-              source: sourceId,
-              layout: { 'line-join': 'round', 'line-cap': 'round' },
-              paint: {
-                'line-color': seg.color,
-                'line-width': 2.5,
-                'line-opacity': 0.9,
-              },
-            },
-            firstSymbolId
-          )
-        })
-
-        // Step markers
-        const fallbackColor = '#9CA3AF'
-        const stepsGeoJSON = {
-          type: 'FeatureCollection',
-          features: dataModel.steps.map((step) => ({
-            type: 'Feature',
-            geometry: {
-              type: 'Point',
-              coordinates: [step.coordinates.lon, step.coordinates.lat],
-            },
-            properties: {
-              id: step.id,
-              name: step.name,
-              zone: step.zone,
-              color: zones[step.zone]?.color || fallbackColor,
-              is_releve: step.is_releve,
-            },
-          })),
-        }
-
-        map.addSource('steps', { type: 'geojson', data: stepsGeoJSON })
-
-        map.addLayer({
-          id: 'steps-simple',
-          type: 'circle',
-          source: 'steps',
-          filter: ['!', ['get', 'is_releve']],
-          paint: {
-            'circle-radius': 4,
-            'circle-color': ['get', 'color'],
-            'circle-stroke-color': '#ffffff',
-            'circle-stroke-width': 1.5,
           },
-        })
-
-        map.addLayer({
-          id: 'steps-releve',
-          type: 'circle',
-          source: 'steps',
-          filter: ['get', 'is_releve'],
-          paint: {
-            'circle-radius': 6,
-            'circle-color': ['get', 'color'],
-            'circle-stroke-color': '#ffffff',
-            'circle-stroke-width': 2.5,
-          },
-        })
-
-        // Tooltip
-        const popup = new mapboxgl.Popup({
-          closeButton: false,
-          closeOnClick: false,
-          offset: 10,
-          className: 'step-tooltip',
-        })
-
-        const stepLayers = ['steps-simple', 'steps-releve']
-        stepLayers.forEach((layerId) => {
-          map.on('mouseenter', layerId, (e) => {
-            map.getCanvas().style.cursor = 'pointer'
-            const props = e.features[0].properties
-            const coords = e.features[0].geometry.coordinates.slice()
-            popup
-              .setLngLat(coords)
-              .setHTML(`<span style="font-size:13px;font-weight:500">${props.name}</span>`)
-              .addTo(map)
-          })
-          map.on('mouseleave', layerId, () => {
-            map.getCanvas().style.cursor = ''
-            popup.remove()
-          })
-          map.on('click', layerId, (e) => {
-            const props = e.features[0].properties
-            console.log('Step clicked:', props.id, props.name)
-          })
-        })
-
-        // Apply initial theme
-        readyRef.current = true
-        applyTheme(map, darkMode ? 'dark' : 'light')
+          firstSymbolId
+        )
       })
+
+      // Step markers
+      const fallbackColor = '#9CA3AF'
+      const stepsGeoJSON = {
+        type: 'FeatureCollection',
+        features: steps.map((step) => ({
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [step.coordinates.lon, step.coordinates.lat],
+          },
+          properties: {
+            id: step.id,
+            name: step.name,
+            zone: step.zone,
+            color: zones[step.zone]?.color || fallbackColor,
+            is_releve: step.is_releve,
+          },
+        })),
+      }
+
+      map.addSource('steps', { type: 'geojson', data: stepsGeoJSON })
+
+      map.addLayer({
+        id: 'steps-simple',
+        type: 'circle',
+        source: 'steps',
+        filter: ['!', ['get', 'is_releve']],
+        paint: {
+          'circle-radius': 4,
+          'circle-color': ['get', 'color'],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 1.5,
+        },
+      })
+
+      map.addLayer({
+        id: 'steps-releve',
+        type: 'circle',
+        source: 'steps',
+        filter: ['get', 'is_releve'],
+        paint: {
+          'circle-radius': 6,
+          'circle-color': ['get', 'color'],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 2.5,
+        },
+      })
+
+      // Tooltip
+      const popup = new mapboxgl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        offset: 10,
+        className: 'step-tooltip',
+      })
+
+      const stepLayers = ['steps-simple', 'steps-releve']
+      stepLayers.forEach((layerId) => {
+        map.on('mouseenter', layerId, (e) => {
+          map.getCanvas().style.cursor = 'pointer'
+          const props = e.features[0].properties
+          const coords = e.features[0].geometry.coordinates.slice()
+          popup
+            .setLngLat(coords)
+            .setHTML(`<span style="font-size:13px;font-weight:500">${props.name}</span>`)
+            .addTo(map)
+        })
+        map.on('mouseleave', layerId, () => {
+          map.getCanvas().style.cursor = ''
+          popup.remove()
+        })
+        map.on('click', layerId, (e) => {
+          const props = e.features[0].properties
+          const stepId = typeof props.id === 'string' ? parseInt(props.id, 10) : props.id
+          const step = steps.find((s) => s.id === stepId)
+          if (step && onStepClickRef.current) {
+            onStepClickRef.current(step)
+          }
+        })
+      })
+
+      // Apply initial theme
+      readyRef.current = true
+      applyTheme(map, darkMode ? 'dark' : 'light')
     })
 
     return () => map.remove()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [steps, meta, locations]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div
       ref={containerRef}
-      style={{ width: '100vw', height: '100vh' }}
+      style={{ width: '100%', height: '100%' }}
     />
   )
 })

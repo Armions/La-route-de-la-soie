@@ -342,152 +342,176 @@ npm run preview   # Preview
 - [ ] **Base RAG** : indexer les 3 carnets de route PDF pour recherche contextuelle
 - [ ] **Humidité** : script Open-Meteo API → injecter dans data_model.json
 
-## Instructions Phase 2 — pour Claude Code
+## Instructions Phase 2 — pour Claude Code (RÉVISÉ)
 
-> Phase 2 = Narration. On ajoute l'interaction avec les arrêts et la frise chronologique.
-> Même règle : une tâche à la fois, commit après chaque tâche validée visuellement.
-
-### Données disponibles (rappel)
-
-- `data_model.json` : 156 étapes, champs `name`, `location` (city/region/country), `weather` (condition/temperature), `zone`, `is_releve`, `releves[]`, `description` (souvent vide)
-- `trip.json` : export Polarsteps brut, 156 étapes dans `all_steps[]`, avec `description` (135/156 remplies), `weather_condition`, `weather_temperature` (152/156). Lien via `uuid` = `polarsteps_uuid`.
-- Les descriptions Polarsteps sont dans `trip.json > all_steps[].description`, PAS dans `data_model.json`.
+> Phase 2 = Narration + Sidebar. On ajoute le panneau latéral, l'interaction avec les arrêts et la frise.
+> La Tâche 2.0 (enrichir les données) et 2.1 (fenêtres flottantes) sont DÉJÀ FAITES.
+> Reprendre à la Tâche 2.2.
 
 ---
 
-### Tâche 2.0 — Enrichir les données côté client
+### Tâche 2.2 — Panneau latéral (Sidebar) avec onglets
 
-Avant de construire l'UI, il faut fusionner les données de `trip.json` dans `data_model.json` côté client.
+Panneau fixe à gauche de la carte, ~320px de large, rétractable. La carte occupe l'espace restant. C'est la colonne vertébrale de l'app. Le panneau a **deux onglets** en haut.
 
-1. Créer un hook `useStepsData()` dans `src/hooks/` qui :
-   - Charge `data_model.json` et `trip.json`
-   - Pour chaque step de `data_model.json`, trouve le step correspondant dans `trip.json` via `polarsteps_uuid === uuid`
-   - Fusionne le champ `description` de trip.json dans chaque step
-   - Retourne les steps enrichis + les meta (zones)
-2. Ce hook remplace tout chargement direct de `data_model.json` dans les composants existants
-3. Vérifier que la carte, le tracé et les marqueurs fonctionnent toujours avec ce hook
-4. `npm run dev` → tout doit être identique visuellement
+#### Onglet 1 — VOYAGE (actif par défaut)
+
+Contenu de haut en bas :
+
+1. **En-tête** :
+   - Titre : "Notre Route de la Soie" (typographie serif léger, élégant)
+   - Sous-titre : "Deux architectes sur les traces de la mythique Route de la Soie"
+
+2. **Compteurs** en ligne horizontale :
+   - 34 869 KILOMÈTRES | 13 PAYS | 7 MOIS | 156 ÉTAPES
+   - Lire les valeurs depuis `data_model.json > meta` (`total_km`, `total_steps`, `total_releves`)
+   - Le nombre de pays et de mois peut être hardcodé (13 et 7)
+   - Style : gros chiffres, légende en petites capitales dessous
+
+3. **Chapitres** (= zones géographiques) :
+   - Liste verticale : pastille de couleur + nom de zone + nombre d'étapes dans cette zone (aligné à droite)
+   - Zones dans l'ordre : Bassin méditerranéen (25), Caucase (21), Asie centrale (23), Chine (41), Japon (46)
+   - Note : la zone "europe" (France seule, 1 étape) et "transit" (Russie-Kazakhstan) ne sont pas des "chapitres" narratifs — les inclure quand même mais visuellement moins proéminents
+   - Au **clic** sur un chapitre → la carte fait un `flyTo` pour cadrer la zone correspondante
+
+4. **Liste des étapes** :
+   - Liste scrollable de toutes les 156 étapes
+   - Chaque étape affiche : pastille couleur de zone + nom de l'étape + ville + date
+   - Les étapes-relevés (`is_releve: true`) ont un indicateur visuel (icône 📐 ou bordure distincte)
+   - Au **clic** sur une étape → la carte centre sur cette étape + ouvre le hub arrêt (Tâche 2.4)
+   - L'étape active (cliquée) est **surlignée** dans la liste
+   - La liste scroll automatiquement vers l'étape active quand on clique un marqueur sur la carte
+
+#### Onglet 2 — CALQUES
+
+Remplace et absorbe le panneau calques flottant créé en Phase 1 (Tâche 1.5). Supprimer l'ancien panneau calques flottant.
+
+1. **Calques de base** (Phase 2) — toggles ON/OFF :
+   - ☑ Tracé du voyage
+   - ☑ Étapes (marqueurs)
+   - ☑ Noms des pays traversés
+   - ☐ Relevés architecturaux uniquement (filtre pour n'afficher que les 13 arrêts-relevés)
+   - ☐ Capitales des pays traversés
+
+2. **Calques thématiques** (Phase 3 — DÉSACTIVÉS, afficher en grisé avec mention "Bientôt") :
+   - Géographie physique (fleuves, montagnes, steppes, déserts)
+   - Courbes topographiques
+   - Climat (Köppen-Geiger)
+   - Régions culturelles
+   - Conflits
+   - Réseau ferré
+   - NE PAS les implémenter maintenant, juste afficher les noms grisés pour montrer ce qui arrive
+
+#### Comportement général du panneau
+
+1. Un bouton (chevron ◀/▶) permet de **replier/déplier** la sidebar
+2. Quand repliée → la carte prend toute la largeur, le bouton reste visible pour réouvrir
+3. La carte Mapbox doit appeler `map.resize()` après chaque ouverture/fermeture pour s'adapter
+4. Le bouton dark mode reste en haut à droite de la carte (pas dans la sidebar)
+5. Style : fond blanc, typo fine, sobre — style atlas/éditorial. En dark mode : fond gris foncé.
+6. Les onglets sont des tabs simples en haut du panneau : "Voyage" | "Calques"
 
 ---
 
-### Tâche 2.1 — Système de fenêtres flottantes (FloatingWindow)
+### Tâche 2.3 — Hub arrêt simple (StopHub)
 
-C'est le composant fondation de toute la Phase 2. Chaque fenêtre est style OS.
-
-1. Créer `src/components/FloatingWindow/FloatingWindow.jsx`
-2. La fenêtre a :
-   - **Barre de titre** : icône + titre + boutons minimiser (—) et fermer (×)
-   - **Corps** : contenu enfant (children)
-   - **Déplaçable** par drag & drop sur la barre de titre
-   - **Redimensionnable** (optionnel, coin bas-droit)
-   - **Position initiale** configurable via props, centrée par défaut
-   - **z-index** : la fenêtre cliquée passe au premier plan
-3. Créer un **gestionnaire de fenêtres** (`useWindowManager` hook ou contexte) :
-   - Gère la liste des fenêtres ouvertes (id, type, position, minimisée, z-index)
-   - Permet d'ouvrir, fermer, minimiser, restaurer une fenêtre
-   - Gère le z-index (focus = au-dessus)
-4. Les fenêtres **minimisées** apparaissent comme des petits onglets dans une barre en bas de l'écran
-5. Style : fond blanc, bordure fine grise, ombre légère, coins arrondis. Cohérent light/dark mode.
-6. Tester avec une fenêtre de démo (texte "Hello") : ouvrir, déplacer, minimiser, restaurer, fermer.
-
----
-
-### Tâche 2.2 — Hub arrêt (StopHub) — Arrêt simple
-
-Au clic sur un marqueur d'arrêt simple (`is_releve: false`), afficher un hub compact.
+Au clic sur un marqueur d'arrêt simple (`is_releve: false`) OU au clic sur une étape dans la sidebar :
 
 1. Créer `src/components/StopHub/StopHub.jsx`
-2. Le hub s'ouvre **comme une FloatingWindow** (déplaçable, minimisable, fermable)
-3. Contenu du hub — arrêt simple :
-   - **En-tête** : nom de l'étape (gras), ville — région — pays (sous-titre)
-   - **Météo** : icône météo + température en °C
-     - Mapper `weather.condition` vers des icônes : `clear-day` → ☀️, `partly-cloudy-day` → ⛅, `cloudy` → ☁️, `rain` → 🌧, `snow` → ❄️
-   - **Accroche** : première phrase de la `description` (tronquée à ~150 caractères si longue)
-   - **Bouton** 📝 "Lire la suite" → ouvre la description complète dans une NOUVELLE FloatingWindow indépendante
-4. La couleur de la zone (bande latérale ou accent en haut) identifie visuellement la zone géographique
-5. Le hub se ferme au clic sur ×, ou quand on clique sur un autre marqueur (le nouveau hub remplace l'ancien)
-6. Tester : cliquer sur un marqueur → le hub s'ouvre avec les bonnes infos
+2. Le hub s'ouvre comme une **FloatingWindow** (déplaçable, minimisable, fermable)
+3. Contenu :
+   - **En-tête** : nom de l'étape (gras) + ville — région — pays
+   - **Bande de couleur** latérale ou accent en haut = couleur de la zone
+   - **Météo** : icône + température °C. Mapper `weather.condition` : `clear-day` → ☀️, `partly-cloudy-day` → ⛅, `cloudy` → ☁️, `rain` → 🌧, `snow` → ❄️
+   - **Accroche** : première phrase de la description (tronquée ~150 caractères)
+   - **Bouton** 📝 "Lire la suite" → ouvre la description complète dans une NOUVELLE FloatingWindow
+4. Le hub se ferme quand on clique sur un autre marqueur (remplacé par le nouveau)
+5. Quand un hub s'ouvre → l'étape correspondante se **surligne** dans la liste de la sidebar
 
 ---
 
-### Tâche 2.3 — Hub arrêt (StopHub) — Arrêt-relevé
+### Tâche 2.4 — Hub arrêt-relevé (StopHub enrichi)
 
-Au clic sur un marqueur d'arrêt-relevé (`is_releve: true`), le hub a du contenu supplémentaire.
+Même composant `StopHub.jsx`, section supplémentaire quand `is_releve === true` :
 
-1. Même composant `StopHub.jsx`, mais avec une section en plus quand `is_releve === true` :
-   - **Badge habitat** : affiche `releves[0].habitat_type` sous l'en-tête (ex: "Trullo", "Darbazi", "Yourte")
-   - **Barre de boutons-icônes** en bas du hub. Chaque bouton n'apparaît QUE si le contenu correspondant existe :
-     - 📷 Photos → `assets.photos.length > 0`
-     - 📐 Coupes/Dessins → `assets.drawings.length > 0`
-     - 🧊 3D → `assets.model_3d !== null`
-     - 📝 Texte → `description` non vide
-     - ✏️ Croquis → `assets.sketches.length > 0`
-2. Pour l'instant, les boutons photos/coupes/3D/croquis affichent un `console.log` (les viewers viendront plus tard). Seul le bouton 📝 ouvre la description en FloatingWindow.
-3. Le badge habitat a un style distinct (fond coloré léger, typographie différente) — vocabulaire archi : "Relevé architectural".
-4. Tester : cliquer sur un marqueur relevé → hub avec badge habitat + barre de boutons
+1. **Badge habitat** sous l'en-tête : affiche `releves[0].habitat_type` (ex: "Trullo", "Darbazi", "Yourte")
+   - Label "Relevé architectural" en petites capitales au-dessus
+   - Style : fond coloré léger, typo distincte
 
-**Note** : la plupart des `assets` sont vides pour l'instant (les photos et dessins seront ajoutés plus tard via l'admin Phase 4). Les boutons ne s'afficheront donc que quand il y a du contenu. Le bouton 📝 Texte fonctionnera pour les 135 étapes qui ont une description.
+2. **Barre de boutons-icônes** en bas du hub. Chaque bouton n'apparaît QUE si le contenu existe :
+   - 📷 Photos → `assets.photos.length > 0`
+   - 📐 Coupes/Dessins → `assets.drawings.length > 0`
+   - 🧊 3D → `assets.model_3d !== null`
+   - 📝 Texte → description non vide
+   - ✏️ Croquis → `assets.sketches.length > 0`
+
+3. Pour l'instant seul le bouton 📝 fonctionne (ouvre la description). Les autres affichent un `console.log` — les viewers viendront plus tard.
+
+**Note** : la plupart des `assets` sont vides. Le bouton 📝 fonctionnera pour les 135 étapes avec description.
 
 ---
 
-### Tâche 2.4 — Fenêtre description (TextViewer)
+### Tâche 2.5 — Fenêtre description (TextViewer)
 
-Le bouton 📝 du hub ouvre la description complète dans une FloatingWindow.
+Le bouton 📝 ouvre la description complète dans une FloatingWindow indépendante.
 
 1. Créer `src/components/TextViewer/TextViewer.jsx`
-2. La fenêtre affiche :
+2. Contenu :
    - Titre : nom de l'étape
    - Sous-titre : ville, pays — date
-   - Corps : la description complète de trip.json
-   - Scroll si le texte est long
-3. C'est une FloatingWindow indépendante — on peut donc avoir le hub ET la fenêtre texte ouverts en même temps, les déplacer séparément
-4. Tester : ouvrir un hub → cliquer 📝 → la fenêtre texte s'ouvre à côté
+   - Corps : description complète de trip.json (via le hook useStepsData)
+   - Scroll si texte long
+3. C'est une FloatingWindow indépendante — on peut avoir le hub ET la fenêtre texte ouverts simultanément
+4. Tester : cliquer marqueur → hub → 📝 → fenêtre texte à côté
 
 ---
 
-### Tâche 2.5 — Frise chronologique (Timeline)
+### Tâche 2.6 — Frise chronologique (Timeline)
 
-Barre horizontale en bas de l'écran, synchronisée avec la carte.
+Barre horizontale fixe en bas de l'écran.
 
 1. Créer `src/components/Timeline/Timeline.jsx`
-2. Barre fixe en bas, hauteur ~60px, largeur 100%
-3. La barre est divisée en **segments colorés par zone** (mêmes couleurs que le tracé), proportionnels à la durée dans chaque zone
-4. Afficher les **noms de pays** le long de la frise aux transitions de pays
-5. Afficher les **dates** de début et fin du voyage aux extrémités
-6. Au **survol** d'un segment : tooltip avec le nom de la zone + dates
-7. Au **clic** sur un point de la frise : la carte zoom/pan vers la position correspondante sur le tracé
-8. **Marqueur de position** : un curseur vertical sur la frise indique où on se trouve quand on navigue sur la carte
-9. Pas de lecture automatique pour l'instant (play/pause viendra plus tard si besoin)
-10. Style : fond semi-transparent, cohérent light/dark mode, ne doit pas cacher la carte (légère transparence ou retrait)
+2. Hauteur ~60px, largeur 100% (de la sidebar au bord droit)
+3. Divisée en **segments colorés par zone**, proportionnels à la durée dans chaque zone
+4. Afficher les **noms de pays** aux transitions
+5. **Dates** de début (6 mai 2025) et fin (18 déc 2025) aux extrémités
+6. Au **survol** d'un segment : tooltip avec nom de zone + dates
+7. Au **clic** : la carte fait un `flyTo` vers la position correspondante
+8. **Curseur vertical** indiquant la position actuelle quand on navigue sur la carte
+9. Style : fond semi-transparent, cohérent light/dark mode
 
 ---
 
-### Tâche 2.6 — Synchronisation carte ↔ frise
+### Tâche 2.7 — Synchronisation carte ↔ sidebar ↔ frise
 
-Connecter la frise et la carte.
+Tout est connecté :
 
-1. Quand on **clique sur la frise** → la carte s'anime (flyTo) vers la position correspondante
-2. Quand on **déplace la carte** manuellement → le curseur de la frise suit pour indiquer la zone visible
-3. Au **survol d'un segment** de la frise → le tronçon correspondant sur la carte se met en surbrillance (épaisseur ou opacité augmentée)
-4. Le tout doit être fluide, pas de saccade
+1. **Clic marqueur sur la carte** → hub s'ouvre + étape surlignée dans sidebar + curseur frise se positionne
+2. **Clic étape dans la sidebar** → carte centre sur l'étape + hub s'ouvre + curseur frise se positionne
+3. **Clic sur la frise** → carte s'anime vers la position + étape la plus proche surlignée dans sidebar
+4. **Survol segment frise** → tronçon correspondant en surbrillance sur la carte
+5. **Navigation libre carte** (pan/zoom) → curseur frise suit la zone visible
+6. Le tout doit être fluide, sans saccade
 
 ---
 
 ### Vérification Phase 2
 
-Quand toutes les tâches sont faites, vérifier :
 - [ ] `npm run dev` démarre sans erreur
 - [ ] `npm run build` compile sans erreur
-- [ ] Clic sur un arrêt simple → hub avec nom, lieu, météo, accroche, bouton texte
-- [ ] Clic sur un arrêt-relevé → hub avec badge habitat + barre de boutons
-- [ ] Bouton 📝 → ouvre la description en fenêtre flottante indépendante
-- [ ] Les fenêtres sont déplaçables, minimisables, fermables
-- [ ] Plusieurs fenêtres simultanées possibles
-- [ ] La frise chronologique affiche les zones colorées + pays + dates
-- [ ] Clic sur la frise → la carte suit
-- [ ] Navigation carte → la frise suit
+- [ ] Sidebar avec onglet Voyage : titre, compteurs, chapitres, liste 156 étapes
+- [ ] Sidebar avec onglet Calques : toggles de base fonctionnels, calques Phase 3 grisés
+- [ ] Sidebar rétractable (la carte s'adapte)
+- [ ] Clic étape sidebar → carte centre + hub s'ouvre
+- [ ] Clic marqueur carte → hub s'ouvre + étape surlignée dans sidebar
+- [ ] Hub arrêt simple : nom, lieu, météo, accroche, bouton texte
+- [ ] Hub arrêt-relevé : badge habitat + barre de boutons
+- [ ] Bouton 📝 → description complète en fenêtre flottante indépendante
+- [ ] Fenêtres déplaçables, minimisables, fermables, multiples simultanées
+- [ ] Frise chrono en bas : segments colorés, pays, dates, clic → carte suit
+- [ ] Synchronisation carte ↔ sidebar ↔ frise fluide
 - [ ] Tout fonctionne en light ET dark mode
-- [ ] Aucune donnée hardcodée — tout vient de data_model.json / trip.json
+- [ ] Aucune donnée hardcodée
 
 ## Journal de bord
 
