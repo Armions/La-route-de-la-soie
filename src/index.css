@@ -1,1 +1,24 @@
 @import "tailwindcss";
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Tooltip for step markers */
+.step-tooltip .mapboxgl-popup-content {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 4px;
+  padding: 4px 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+.step-tooltip .mapboxgl-popup-tip {
+  display: none;
+}
