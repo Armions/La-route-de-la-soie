@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(for dir:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(node:*)",
+      "/permissions add Bash(npm run *\\)\n/permissions add Bash\\(npm install *\\)\n/permissions add Bash\\(npx *\\)\n/permissions add Bash\\(mkdir *\\)\n/permissions add Bash\\(cat *\\)\n/permissions add Bash\\(ls *\\)\n/permissions add Bash\\(dir *)"
     ]
   }
 }

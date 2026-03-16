@@ -1,19 +1,23 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { buildRouteSegments } from '../../utils/buildRouteSegments'
-import { applyTheme } from '../../utils/mapTheme'
+import { applyTheme, TRAVERSED_COUNTRIES } from '../../utils/mapTheme'
 
-// Center of the journey (Central Asia), zoom 3
 const CENTER = [50, 55]
 const ZOOM = 3
 
-export default function MapView({ darkMode }) {
+export default forwardRef(function MapView({ darkMode }, ref) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const readyRef = useRef(false)
+  const segmentCountRef = useRef(0)
 
-  // Apply theme whenever darkMode changes (after map is ready)
+  useImperativeHandle(ref, () => ({
+    getMap: () => mapRef.current,
+    getSegmentCount: () => segmentCountRef.current,
+  }))
+
   useEffect(() => {
     if (readyRef.current && mapRef.current) {
       applyTheme(mapRef.current, darkMode ? 'dark' : 'light')
@@ -29,12 +33,75 @@ export default function MapView({ darkMode }) {
       center: CENTER,
       zoom: ZOOM,
       projection: 'mercator',
+      language: 'fr',
     })
 
     mapRef.current = map
 
     map.on('style.load', () => {
-      // --- 1. Add Mapbox Terrain DEM source ---
+      // ============================================================
+      // A. COUNTRY BOUNDARIES SOURCE — for differentiated fills
+      // ============================================================
+      map.addSource('country-boundaries', {
+        type: 'vector',
+        url: 'mapbox://mapbox.country-boundaries-v1',
+      })
+
+      // Find insertion point: above background, below everything else
+      const firstNonBgLayer = map
+        .getStyle()
+        .layers.find((l) => l.id !== 'land')?.id
+
+      // Fill: non-traversed countries — gray #d0d0d0
+      map.addLayer(
+        {
+          id: 'country-fills-other',
+          type: 'fill',
+          source: 'country-boundaries',
+          'source-layer': 'country_boundaries',
+          filter: [
+            'all',
+            ['!', ['in', ['get', 'iso_3166_1'], ['literal', TRAVERSED_COUNTRIES]]],
+            ['==', ['get', 'disputed'], 'false'],
+            ['any',
+              ['==', 'all', ['get', 'worldview']],
+              ['in', 'US', ['get', 'worldview']],
+            ],
+          ],
+          paint: {
+            'fill-color': '#d0d0d0',
+            'fill-opacity': 1,
+          },
+        },
+        firstNonBgLayer
+      )
+
+      // Fill: traversed countries — light #e8e8e8
+      map.addLayer(
+        {
+          id: 'country-fills-traversed',
+          type: 'fill',
+          source: 'country-boundaries',
+          'source-layer': 'country_boundaries',
+          filter: [
+            'all',
+            ['in', ['get', 'iso_3166_1'], ['literal', TRAVERSED_COUNTRIES]],
+            ['any',
+              ['==', 'all', ['get', 'worldview']],
+              ['in', 'US', ['get', 'worldview']],
+            ],
+          ],
+          paint: {
+            'fill-color': '#e8e8e8',
+            'fill-opacity': 1,
+          },
+        },
+        firstNonBgLayer
+      )
+
+      // ============================================================
+      // B. TERRAIN DEM + HILLSHADE
+      // ============================================================
       map.addSource('mapbox-dem', {
         type: 'raster-dem',
         url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
@@ -42,7 +109,7 @@ export default function MapView({ darkMode }) {
         maxzoom: 14,
       })
 
-      // --- 2. Add hillshade layer (below labels) ---
+      // Insert hillshade ABOVE country fills, BELOW labels
       const firstSymbolId = map
         .getStyle()
         .layers.find((l) => l.type === 'symbol')?.id
@@ -53,9 +120,9 @@ export default function MapView({ darkMode }) {
           type: 'hillshade',
           source: 'mapbox-dem',
           paint: {
-            'hillshade-exaggeration': 0.4,
-            'hillshade-shadow-color': '#333333',
-            'hillshade-highlight-color': '#ffffff',
+            'hillshade-exaggeration': 0.55,
+            'hillshade-shadow-color': '#666666',
+            'hillshade-highlight-color': '#fafafa',
             'hillshade-illumination-direction': 315,
             'hillshade-illumination-anchor': 'map',
             'hillshade-accent-color': '#aaaaaa',
@@ -64,10 +131,55 @@ export default function MapView({ darkMode }) {
         firstSymbolId
       )
 
-      // --- 3. Set terrain for 3D relief rendering ---
       map.setTerrain({ source: 'mapbox-dem', exaggeration: 0 })
 
-      // --- 4. Load and display the colored route trace + markers ---
+      // ============================================================
+      // C. FRENCH LABELS
+      // ============================================================
+      const style = map.getStyle()
+      style.layers.forEach((layer) => {
+        if (layer.type === 'symbol' && layer.layout?.['text-field']) {
+          try {
+            map.setLayoutProperty(layer.id, 'text-field', [
+              'coalesce',
+              ['get', 'name_fr'],
+              ['get', 'name_en'],
+              ['get', 'name'],
+            ])
+          } catch (_) {}
+        }
+      })
+
+      // ============================================================
+      // D. SELECTIVE DISPLAY — dim labels in non-traversed countries
+      // ============================================================
+      try {
+        // Minor settlements: visible only in traversed countries
+        map.setPaintProperty('settlement-minor-label', 'text-opacity', [
+          'case',
+          ['in', ['get', 'iso_3166_1'], ['literal', TRAVERSED_COUNTRIES]],
+          1,
+          0,
+        ])
+        // Major settlements: visible in traversed, dim in others
+        map.setPaintProperty('settlement-major-label', 'text-opacity', [
+          'case',
+          ['in', ['get', 'iso_3166_1'], ['literal', TRAVERSED_COUNTRIES]],
+          1,
+          0.15,
+        ])
+        // Regions: only in traversed countries
+        map.setPaintProperty('state-label', 'text-opacity', [
+          'case',
+          ['in', ['get', 'iso_3166_1'], ['literal', TRAVERSED_COUNTRIES]],
+          0.8,
+          0,
+        ])
+      } catch (_) {}
+
+      // ============================================================
+      // E. ROUTE TRACE + MARKERS
+      // ============================================================
       Promise.all([
         fetch('/data/locations.json').then((r) => r.json()),
         fetch('/data/data_model.json').then((r) => r.json()),
@@ -79,20 +191,14 @@ export default function MapView({ darkMode }) {
           zones
         )
 
-        // Route segments
+        segmentCountRef.current = segments.length
         segments.forEach((seg, i) => {
           const sourceId = `route-segment-${i}`
-          const haloId = `route-halo-${i}`
-          const lineId = `route-line-${i}`
-
-          map.addSource(sourceId, {
-            type: 'geojson',
-            data: seg.geojson,
-          })
+          map.addSource(sourceId, { type: 'geojson', data: seg.geojson })
 
           map.addLayer(
             {
-              id: haloId,
+              id: `route-halo-${i}`,
               type: 'line',
               source: sourceId,
               layout: { 'line-join': 'round', 'line-cap': 'round' },
@@ -107,7 +213,7 @@ export default function MapView({ darkMode }) {
 
           map.addLayer(
             {
-              id: lineId,
+              id: `route-line-${i}`,
               type: 'line',
               source: sourceId,
               layout: { 'line-join': 'round', 'line-cap': 'round' },
@@ -121,7 +227,7 @@ export default function MapView({ darkMode }) {
           )
         })
 
-        // Step markers (156 stops)
+        // Step markers
         const fallbackColor = '#9CA3AF'
         const stepsGeoJSON = {
           type: 'FeatureCollection',
@@ -143,7 +249,6 @@ export default function MapView({ darkMode }) {
 
         map.addSource('steps', { type: 'geojson', data: stepsGeoJSON })
 
-        // Simple stops
         map.addLayer({
           id: 'steps-simple',
           type: 'circle',
@@ -157,7 +262,6 @@ export default function MapView({ darkMode }) {
           },
         })
 
-        // Relevé stops
         map.addLayer({
           id: 'steps-releve',
           type: 'circle',
@@ -171,7 +275,7 @@ export default function MapView({ darkMode }) {
           },
         })
 
-        // Tooltip on hover
+        // Tooltip
         const popup = new mapboxgl.Popup({
           closeButton: false,
           closeOnClick: false,
@@ -200,7 +304,7 @@ export default function MapView({ darkMode }) {
           })
         })
 
-        // Apply initial theme after all layers are added
+        // Apply initial theme
         readyRef.current = true
         applyTheme(map, darkMode ? 'dark' : 'light')
       })
@@ -215,4 +319,4 @@ export default function MapView({ darkMode }) {
       style={{ width: '100vw', height: '100vh' }}
     />
   )
-}
+})

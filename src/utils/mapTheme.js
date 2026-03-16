@@ -1,57 +1,97 @@
 /**
- * Theme definitions and application for the Mapbox map.
- * Switches paint properties dynamically — no style reload needed.
+ * Map theme — atlas contemporain lumineux.
+ * Pays traversés clairs, pays hors-itinéraire plus gris.
+ * Le tracé coloré = SEUL élément chromatique.
  */
 
-const THEMES = {
+// ISO 3166-1 alpha-2 codes of traversed countries
+export const TRAVERSED_COUNTRIES = [
+  'FR', 'IT', 'GR', 'TR', 'GE', 'AM', 'RU', 'KZ', 'UZ', 'KG', 'CN', 'HK', 'JP',
+]
+
+export const THEMES = {
   light: {
-    ocean: '#b8c0cc',
-    land: '#d6d6d6',
-    road: '#c8c8c8',
-    roadOpacity: 0.3,
-    textColor: '#555555',
-    textHalo: '#e8e8e8',
-    hillshadeShadow: '#333333',
-    hillshadeHighlight: '#ffffff',
+    // Country fills
+    background: '#dcdcdc',
+    countryTraversed: '#e8e8e8',
+    countryOther: '#d0d0d0',
+    ocean: '#b8b8b8',
+    waterway: '#a0a0a5',
+    // Admin boundaries
+    adminBorder: '#aaaaaa',
+    adminOpacity: 0.5,
+    // Roads
+    road: '#cccccc',
+    roadOpacity: 0.1,
+    // Labels — all in grays
+    countryTextColor: '#555555',
+    countryTextHalo: '#e0e0e0',
+    stateTextColor: '#777777',
+    stateTextHalo: '#e0e0e0',
+    settlementTextColor: '#666666',
+    settlementTextHalo: '#e8e8e8',
+    waterTextColor: '#666666',
+    waterTextHalo: '#b0b0b0',
+    naturalTextColor: '#888888',
+    naturalTextHalo: '#dcdcdc',
+    // Hillshade
+    hillshadeShadow: '#666666',
+    hillshadeHighlight: '#fafafa',
     hillshadeAccent: '#aaaaaa',
-    haloLine: '#ffffff',
+    hillshadeExaggeration: 0.55,
+    // Route / markers
+    haloLine: 'rgba(255,255,255,0.5)',
     markerStroke: '#ffffff',
   },
   dark: {
-    ocean: '#1a1a2e',
-    land: '#2a2a2e',
-    road: '#3a3a3e',
-    roadOpacity: 0.2,
-    textColor: '#c0c0c0',
-    textHalo: '#1a1a1e',
+    background: '#1a1a1e',
+    countryTraversed: '#262628',
+    countryOther: '#1e1e22',
+    ocean: '#111114',
+    waterway: '#2a2a30',
+    adminBorder: '#3a3a3e',
+    adminOpacity: 0.4,
+    road: '#282828',
+    roadOpacity: 0.1,
+    countryTextColor: '#aaaaaa',
+    countryTextHalo: '#1e1e22',
+    stateTextColor: '#888888',
+    stateTextHalo: '#1e1e22',
+    settlementTextColor: '#808080',
+    settlementTextHalo: '#1e1e22',
+    waterTextColor: '#555560',
+    waterTextHalo: '#151518',
+    naturalTextColor: '#666666',
+    naturalTextHalo: '#1e1e22',
     hillshadeShadow: '#000000',
-    hillshadeHighlight: '#3a3a3a',
-    hillshadeAccent: '#222222',
-    haloLine: '#000000',
-    markerStroke: '#1a1a1e',
+    hillshadeHighlight: '#2a2a2e',
+    hillshadeAccent: '#151518',
+    hillshadeExaggeration: 0.5,
+    haloLine: 'rgba(0,0,0,0.5)',
+    markerStroke: '#1e1e22',
   },
 }
 
-// Layer IDs to hide entirely
+// Layers to hide entirely
 const LAYERS_TO_HIDE = [
-  'land-structure-polygon',
-  'aeroway-polygon',
-  'national-park',
-  'landuse',
-  'pitch-outline',
-  'pitch',
-  'golf-hole-line',
-  'building-underground',
-  'building',
-  'building-outline',
-  'tunnel-simple',
-  'road-simple',
+  'national-park', 'landuse', 'land-structure-polygon', 'land-structure-line',
+  'aeroway-polygon', 'aeroway-line', 'building',
+  'poi-label', 'airport-label', 'road-label-simple',
+  'road-rail', 'bridge-rail', 'settlement-subdivision-label',
+]
+
+// Road layers to dim
+const ROAD_LAYERS = [
+  'tunnel-path-trail', 'tunnel-path-cycleway-piste', 'tunnel-path',
+  'tunnel-steps', 'tunnel-pedestrian', 'tunnel-simple',
+  'road-path-trail', 'road-path-cycleway-piste', 'road-path',
+  'road-steps', 'road-pedestrian', 'road-simple',
+  'bridge-path-trail', 'bridge-path-cycleway-piste', 'bridge-path',
+  'bridge-steps', 'bridge-pedestrian', 'bridge-case-simple', 'bridge-simple',
 ]
 
 /**
- * Apply a theme to the map. Safe to call repeatedly.
- * @param {mapboxgl.Map} map
- * @param {'light'|'dark'} mode
+ * Apply theme to map. Safe to call repeatedly.
  */
 export function applyTheme(map, mode) {
   const t = THEMES[mode]
@@ -60,61 +100,108 @@ export function applyTheme(map, mode) {
   const style = map.getStyle()
   if (!style) return
 
-  style.layers.forEach((layer) => {
+  // Background
+  try { map.setPaintProperty('land', 'background-color', t.background) } catch (_) {}
+
+  // Country fills (our custom layers)
+  try {
+    map.setPaintProperty('country-fills-traversed', 'fill-color', t.countryTraversed)
+    map.setPaintProperty('country-fills-other', 'fill-color', t.countryOther)
+  } catch (_) {}
+
+  for (const layer of style.layers) {
+    const { id, type } = layer
+    if (id.startsWith('route-') || id.startsWith('steps-') || id === 'hillshade-layer') continue
+    if (id.startsWith('country-fills-')) continue
+
     try {
-      // Water / ocean
-      if (layer.type === 'fill' && (layer.id.startsWith('water') || layer.id === 'water-shadow')) {
-        map.setPaintProperty(layer.id, 'fill-color', t.ocean)
-        map.setPaintProperty(layer.id, 'fill-opacity', 1)
-        return
+      if (LAYERS_TO_HIDE.includes(id)) {
+        map.setLayoutProperty(id, 'visibility', 'none')
+        continue
       }
 
-      // Land fills
-      if (layer.type === 'fill') {
-        if (LAYERS_TO_HIDE.includes(layer.id)) {
-          map.setLayoutProperty(layer.id, 'visibility', 'none')
-          return
+      // Water fill
+      if (type === 'fill' && id === 'water') {
+        map.setPaintProperty(id, 'fill-color', t.ocean)
+        map.setPaintProperty(id, 'fill-opacity', 1)
+        continue
+      }
+
+      // Waterway line
+      if (type === 'line' && id === 'waterway') {
+        map.setPaintProperty(id, 'line-color', t.waterway)
+        map.setPaintProperty(id, 'line-opacity', 0.5)
+        continue
+      }
+
+      // Roads
+      if (ROAD_LAYERS.includes(id)) {
+        map.setPaintProperty(id, 'line-color', t.road)
+        map.setPaintProperty(id, 'line-opacity', t.roadOpacity)
+        continue
+      }
+
+      // Admin boundaries
+      if (id.startsWith('admin-')) {
+        map.setPaintProperty(id, 'line-color', t.adminBorder)
+        map.setPaintProperty(id, 'line-opacity', t.adminOpacity)
+        continue
+      }
+
+      // Other fills (landcover etc) — hide, we use country-fills now
+      if (type === 'fill') {
+        map.setPaintProperty(id, 'fill-opacity', 0)
+        continue
+      }
+
+      // Labels — ALL in grays
+      if (type === 'symbol') {
+        if (id === 'country-label' || id === 'continent-label') {
+          map.setPaintProperty(id, 'text-color', t.countryTextColor)
+          map.setPaintProperty(id, 'text-halo-color', t.countryTextHalo)
+          map.setPaintProperty(id, 'text-halo-width', 1.5)
+          try { map.setPaintProperty(id, 'icon-opacity', 0) } catch (_) {}
+          continue
         }
-        map.setPaintProperty(layer.id, 'fill-color', t.land)
-        return
+        if (id === 'state-label') {
+          map.setPaintProperty(id, 'text-color', t.stateTextColor)
+          map.setPaintProperty(id, 'text-halo-color', t.stateTextHalo)
+          map.setPaintProperty(id, 'text-halo-width', 1.2)
+          continue
+        }
+        if (id.startsWith('water-') || id === 'waterway-label' || id === 'natural-line-label') {
+          map.setPaintProperty(id, 'text-color', t.waterTextColor)
+          map.setPaintProperty(id, 'text-halo-color', t.waterTextHalo)
+          map.setPaintProperty(id, 'text-halo-width', 0.8)
+          continue
+        }
+        if (id.startsWith('settlement-')) {
+          map.setPaintProperty(id, 'text-color', t.settlementTextColor)
+          map.setPaintProperty(id, 'text-halo-color', t.settlementTextHalo)
+          map.setPaintProperty(id, 'text-halo-width', 1.2)
+          continue
+        }
+        map.setPaintProperty(id, 'text-color', t.naturalTextColor)
+        map.setPaintProperty(id, 'text-halo-color', t.naturalTextHalo)
+        map.setPaintProperty(id, 'text-halo-width', 1)
       }
-
-      // Roads / lines
-      if (layer.type === 'line' && !layer.id.startsWith('water')) {
-        // Skip our route layers
-        if (layer.id.startsWith('route-')) return
-        map.setPaintProperty(layer.id, 'line-color', t.road)
-        map.setPaintProperty(layer.id, 'line-opacity', t.roadOpacity)
-        return
-      }
-
-      // Labels
-      if (layer.type === 'symbol') {
-        map.setPaintProperty(layer.id, 'text-color', t.textColor)
-        map.setPaintProperty(layer.id, 'text-halo-color', t.textHalo)
-        map.setPaintProperty(layer.id, 'text-halo-width', 1)
-        return
-      }
-    } catch (_) {
-      // Some layers use expressions — skip gracefully
-    }
-  })
+    } catch (_) {}
+  }
 
   // Hillshade
   try {
     map.setPaintProperty('hillshade-layer', 'hillshade-shadow-color', t.hillshadeShadow)
     map.setPaintProperty('hillshade-layer', 'hillshade-highlight-color', t.hillshadeHighlight)
     map.setPaintProperty('hillshade-layer', 'hillshade-accent-color', t.hillshadeAccent)
+    map.setPaintProperty('hillshade-layer', 'hillshade-exaggeration', t.hillshadeExaggeration)
   } catch (_) {}
 
   // Route halos
-  style.layers.forEach((layer) => {
+  for (const layer of style.layers) {
     if (layer.id.startsWith('route-halo-')) {
-      try {
-        map.setPaintProperty(layer.id, 'line-color', t.haloLine)
-      } catch (_) {}
+      try { map.setPaintProperty(layer.id, 'line-color', t.haloLine) } catch (_) {}
     }
-  })
+  }
 
   // Marker strokes
   try {
@@ -122,5 +209,3 @@ export function applyTheme(map, mode) {
     map.setPaintProperty('steps-releve', 'circle-stroke-color', t.markerStroke)
   } catch (_) {}
 }
-
-export { THEMES, LAYERS_TO_HIDE }
