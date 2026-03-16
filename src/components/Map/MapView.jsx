@@ -7,13 +7,18 @@ import { applyTheme, TRAVERSED_COUNTRIES } from '../../utils/mapTheme'
 const CENTER = [50, 55]
 const ZOOM = 3
 
-export default forwardRef(function MapView({ darkMode, steps, meta, locations, onStepClick }, ref) {
+export default forwardRef(function MapView({ darkMode, steps, meta, locations, onStepClick, onMapMove, highlightedZone, timelineHoverFrac }, ref) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const readyRef = useRef(false)
   const segmentCountRef = useRef(0)
+  const segmentZonesRef = useRef([]) // zone per route segment index
+  const sortedLocationsRef = useRef(null) // GPS points sorted by time
+  const hoverMarkerRef = useRef(null) // Mapbox marker for timeline hover
   const onStepClickRef = useRef(onStepClick)
+  const onMapMoveRef = useRef(onMapMove)
   onStepClickRef.current = onStepClick
+  onMapMoveRef.current = onMapMove
 
   useImperativeHandle(ref, () => ({
     getMap: () => mapRef.current,
@@ -25,6 +30,76 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
       applyTheme(mapRef.current, darkMode ? 'dark' : 'light')
     }
   }, [darkMode])
+
+  // Highlight route segments matching hovered zone on frise
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !readyRef.current) return
+    const count = segmentCountRef.current
+    const zones = segmentZonesRef.current
+
+    for (let i = 0; i < count; i++) {
+      try {
+        if (highlightedZone) {
+          const match = zones[i] === highlightedZone
+          map.setPaintProperty(`route-line-${i}`, 'line-opacity', match ? 1 : 0.2)
+          map.setPaintProperty(`route-halo-${i}`, 'line-opacity', match ? 1 : 0.1)
+        } else {
+          map.setPaintProperty(`route-line-${i}`, 'line-opacity', 0.9)
+          map.setPaintProperty(`route-halo-${i}`, 'line-opacity', 0.9)
+        }
+      } catch (_) {}
+    }
+  }, [highlightedZone])
+
+  // Timeline hover → show glowing dot on route at interpolated GPS position
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !readyRef.current) return
+
+    if (!timelineHoverFrac) {
+      // Remove marker
+      if (hoverMarkerRef.current) {
+        hoverMarkerRef.current.remove()
+        hoverMarkerRef.current = null
+      }
+      return
+    }
+
+    const sorted = sortedLocationsRef.current
+    if (!sorted || sorted.length === 0) return
+
+    const { frac, zoneColor } = timelineHoverFrac
+
+    // Interpolate position: frac 0→1 maps to sorted GPS array
+    const idx = frac * (sorted.length - 1)
+    const lo = Math.floor(idx)
+    const hi = Math.min(lo + 1, sorted.length - 1)
+    const t = idx - lo
+    const lon = sorted[lo].lon + t * (sorted[hi].lon - sorted[lo].lon)
+    const lat = sorted[lo].lat + t * (sorted[hi].lat - sorted[lo].lat)
+
+    // Create or update marker
+    if (!hoverMarkerRef.current) {
+      const el = document.createElement('div')
+      el.style.width = '12px'
+      el.style.height = '12px'
+      el.style.borderRadius = '50%'
+      el.style.background = '#ffffff'
+      el.style.border = `2.5px solid ${zoneColor}`
+      el.style.boxShadow = `0 0 8px ${zoneColor}, 0 0 3px rgba(0,0,0,0.3)`
+      el.style.pointerEvents = 'none'
+      el.style.transition = 'border-color 100ms'
+      hoverMarkerRef.current = new mapboxgl.Marker({ element: el })
+        .setLngLat([lon, lat])
+        .addTo(map)
+    } else {
+      hoverMarkerRef.current.setLngLat([lon, lat])
+      const el = hoverMarkerRef.current.getElement()
+      el.style.border = `2.5px solid ${zoneColor}`
+      el.style.boxShadow = `0 0 8px ${zoneColor}, 0 0 3px rgba(0,0,0,0.3)`
+    }
+  }, [timelineHoverFrac])
 
   useEffect(() => {
     if (!steps || !meta || !locations) return
@@ -182,11 +257,16 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
       const zones = meta.zones
       const segments = buildRouteSegments(locations, steps, zones)
 
+      // Store sorted GPS points for timeline hover interpolation
+      sortedLocationsRef.current = [...locations].sort((a, b) => a.time - b.time)
+
       segmentCountRef.current = segments.length
+      segmentZonesRef.current = segments.map((seg) => seg.zone)
       segments.forEach((seg, i) => {
         const sourceId = `route-segment-${i}`
         map.addSource(sourceId, { type: 'geojson', data: seg.geojson })
 
+        // Halo sombre pour lisibilité sur fond gris (surtout zone transit)
         map.addLayer(
           {
             id: `route-halo-${i}`,
@@ -194,9 +274,9 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
             source: sourceId,
             layout: { 'line-join': 'round', 'line-cap': 'round' },
             paint: {
-              'line-color': '#ffffff',
-              'line-width': 6,
-              'line-opacity': 0.7,
+              'line-color': 'rgba(0,0,0,0.3)',
+              'line-width': 5,
+              'line-opacity': 0.9,
             },
           },
           firstSymbolId
@@ -297,6 +377,13 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
             onStepClickRef.current(step)
           }
         })
+      })
+
+      // Map move → update frise cursor to closest step
+      map.on('moveend', () => {
+        if (onMapMoveRef.current) {
+          onMapMoveRef.current(map.getCenter())
+        }
       })
 
       // Apply initial theme

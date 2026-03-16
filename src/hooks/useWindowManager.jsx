@@ -4,30 +4,32 @@ const WindowManagerContext = createContext(null)
 
 /**
  * Window manager — tracks open/minimized floating windows.
- * Each window: { id, type, title, icon, minimized, position, size, zIndex, props }
+ * Each window: { id, type, title, icon, minimized, position, size, zIndex, ...custom }
+ *
+ * Rules:
+ * - closeWindow: ONLY removes a window (explicit user action via X button)
+ * - minimizeWindow / restoreWindow: toggle minimized state, never remove
+ * - openWindow: creates or re-focuses. Merges new props into existing window.
+ * - Each window has a unique id and is fully independent.
  */
 export function WindowManagerProvider({ children }) {
   const [windows, setWindows] = useState([])
   const zCounterRef = useRef(100)
 
-  const nextZ = useCallback(() => {
-    zCounterRef.current += 1
-    return zCounterRef.current
-  }, [])
-
   const openWindow = useCallback((win) => {
     setWindows((prev) => {
-      // If window with same id exists, restore & focus it
-      const existing = prev.find((w) => w.id === win.id)
-      if (existing) {
-        const z = zCounterRef.current + 1
-        zCounterRef.current = z
-        return prev.map((w) =>
-          w.id === win.id ? { ...w, minimized: false, zIndex: z } : w
-        )
-      }
       const z = zCounterRef.current + 1
       zCounterRef.current = z
+
+      const existing = prev.find((w) => w.id === win.id)
+      if (existing) {
+        // Merge new props, restore from minimized, bring to front
+        return prev.map((w) =>
+          w.id === win.id
+            ? { ...w, ...win, minimized: false, zIndex: z }
+            : w
+        )
+      }
       return [...prev, { ...win, minimized: false, zIndex: z }]
     })
   }, [])
@@ -43,11 +45,13 @@ export function WindowManagerProvider({ children }) {
   }, [])
 
   const restoreWindow = useCallback((id) => {
-    const z = zCounterRef.current + 1
-    zCounterRef.current = z
-    setWindows((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, minimized: false, zIndex: z } : w))
-    )
+    setWindows((prev) => {
+      const z = zCounterRef.current + 1
+      zCounterRef.current = z
+      return prev.map((w) =>
+        w.id === id ? { ...w, minimized: false, zIndex: z } : w
+      )
+    })
   }, [])
 
   const focusWindow = useCallback((id) => {

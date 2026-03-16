@@ -1,5 +1,22 @@
 import FloatingWindow from '../FloatingWindow/FloatingWindow'
 
+const COUNTRY_FR = {
+  'France': 'France',
+  'Italy': 'Italie',
+  'Greece': 'Grèce',
+  'Turkey': 'Turquie',
+  'Georgia': 'Géorgie',
+  'Armenia': 'Arménie',
+  'Russia': 'Russie',
+  'Kazakhstan': 'Kazakhstan',
+  'Uzbekistan': 'Ouzbékistan',
+  'Kyrgyzstan': 'Kirghizstan',
+  'China': 'Chine',
+  'Hong Kong': 'Hong Kong',
+  'Hong Kong S.A.R.': 'Hong Kong',
+  'Japan': 'Japon',
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return ''
   const d = new Date(dateStr + 'T00:00:00')
@@ -16,7 +33,7 @@ export default function TextViewer({ step, darkMode }) {
   const textMuted = darkMode ? '#666' : '#888'
   const divider = darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'
 
-  const location = [step.location?.city, step.location?.country].filter(Boolean).join(', ')
+  const location = [step.location?.city, COUNTRY_FR[step.location?.country] || step.location?.country].filter(Boolean).join(', ')
   const date = formatDate(step.date_start)
   const subtitle = [location, date].filter(Boolean).join(' \u2014 ')
 

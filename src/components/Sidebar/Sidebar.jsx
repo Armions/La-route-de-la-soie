@@ -46,13 +46,21 @@ export default function Sidebar({
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className="flex-1 py-3 text-[11px] font-medium uppercase tracking-[0.12em] transition-colors"
             style={{
+              flex: 1,
+              padding: '14px 0',
+              fontSize: 13,
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
               color: tab === t.id ? tabActive : tabInactive,
-              borderBottom: tab === t.id
-                ? `2px solid ${tabIndicator}`
-                : '2px solid transparent',
-              letterSpacing: '0.12em',
+              background: 'transparent',
+              borderTop: 'none',
+              borderLeft: 'none',
+              borderRight: 'none',
+              borderBottom: `2px solid ${tab === t.id ? tabIndicator : 'transparent'}`,
+              cursor: 'pointer',
+              transition: 'color 150ms',
             }}
           >
             {t.label}

@@ -40,7 +40,7 @@ export const THEMES = {
     hillshadeAccent: '#888888',
     hillshadeExaggeration: 0.75,
     // Route / markers
-    haloLine: 'rgba(255,255,255,0.7)',
+    haloLine: 'rgba(0,0,0,0.3)',
     markerStroke: '#ffffff',
   },
   dark: {
@@ -67,7 +67,7 @@ export const THEMES = {
     hillshadeHighlight: '#3a3a40',
     hillshadeAccent: '#1a1a1e',
     hillshadeExaggeration: 0.7,
-    haloLine: 'rgba(0,0,0,0.7)',
+    haloLine: 'rgba(0,0,0,0.5)',
     markerStroke: '#1e1e22',
   },
 }

@@ -4,6 +4,7 @@ import DarkModeToggle from './components/Map/DarkModeToggle'
 import Sidebar from './components/Sidebar/Sidebar'
 import StopHub from './components/StopHub/StopHub'
 import TextViewer from './components/TextViewer/TextViewer'
+import Timeline from './components/Timeline/Timeline'
 import WindowTaskbar from './components/FloatingWindow/WindowTaskbar'
 import useStepsData from './hooks/useStepsData'
 import { WindowManagerProvider, useWindowManager } from './hooks/useWindowManager'
@@ -23,10 +24,11 @@ function AppContent({ darkMode, setDarkMode }) {
   const { steps, meta, locations, loading, error } = useStepsData()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [activeStepId, setActiveStepId] = useState(null)
-  const { windows, openWindow, closeWindow } = useWindowManager()
+  const [highlightedZone, setHighlightedZone] = useState(null)
+  const [timelineHoverFrac, setTimelineHoverFrac] = useState(null)
+  const { windows, openWindow, minimizeWindow } = useWindowManager()
   const prevHubIdRef = useRef(null)
-  const windowsRef = useRef(windows)
-  windowsRef.current = windows
+  const skipMapMoveRef = useRef(false)
 
   // Index steps by id for O(1) lookup
   const stepsById = useMemo(() => {
@@ -47,33 +49,60 @@ function AppContent({ darkMode, setDarkMode }) {
     return () => timers.forEach(clearTimeout)
   }, [sidebarCollapsed, loading])
 
+  // Map move → find closest step to center → update frise cursor
+  // Skip when flyTo is in progress (triggered by step click)
+  const handleMapMove = useCallback((center) => {
+    if (skipMapMoveRef.current) return
+    if (!steps || steps.length === 0) return
+    let closest = null
+    let minDist = Infinity
+    for (const s of steps) {
+      const dx = s.coordinates.lon - center.lng
+      const dy = s.coordinates.lat - center.lat
+      const dist = dx * dx + dy * dy
+      if (dist < minDist) {
+        minDist = dist
+        closest = s
+      }
+    }
+    if (closest) {
+      setActiveStepId((prev) => prev === closest.id ? prev : closest.id)
+    }
+  }, [steps])
+
   const handleStepClick = useCallback((step) => {
     setActiveStepId(step.id)
 
     const newHubId = `stop-hub-${step.id}`
+    const zoneColor = meta?.zones[step.zone]?.color || '#9CA3AF'
 
-    // Close previous hub ONLY if it's not minimized
+    // Minimize (never close) previous hub if it's a different one
     if (prevHubIdRef.current && prevHubIdRef.current !== newHubId) {
-      const prevWin = windowsRef.current.find((w) => w.id === prevHubIdRef.current)
-      if (prevWin && !prevWin.minimized) {
-        closeWindow(prevHubIdRef.current)
-      }
+      minimizeWindow(prevHubIdRef.current)
     }
     prevHubIdRef.current = newHubId
 
-    // Open new hub
-    openWindow({ id: newHubId, type: 'stop-hub', title: step.name, stepId: step.id })
+    // Open new hub (or restore if it already exists minimized)
+    openWindow({
+      id: newHubId,
+      type: 'stop-hub',
+      title: step.name,
+      stepId: step.id,
+      zoneColor,
+    })
 
-    // Fly to step
+    // Fly to step — skip map move handler during animation
     const map = mapViewRef.current?.getMap()
     if (map) {
+      skipMapMoveRef.current = true
       map.flyTo({
         center: [step.coordinates.lon, step.coordinates.lat],
         zoom: Math.max(map.getZoom(), 8),
         duration: 1200,
       })
+      setTimeout(() => { skipMapMoveRef.current = false }, 1400)
     }
-  }, [openWindow, closeWindow])
+  }, [openWindow, minimizeWindow, meta])
 
   if (error) {
     return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'red' }}>Erreur de chargement des données</div>
@@ -120,11 +149,24 @@ function AppContent({ darkMode, setDarkMode }) {
           meta={meta}
           locations={locations}
           onStepClick={handleStepClick}
+          onMapMove={handleMapMove}
+          highlightedZone={highlightedZone}
+          timelineHoverFrac={timelineHoverFrac}
         />
         <SidebarToggle
           collapsed={sidebarCollapsed}
           darkMode={darkMode}
           onToggle={() => setSidebarCollapsed((c) => !c)}
+        />
+        <Timeline
+          steps={steps}
+          meta={meta}
+          darkMode={darkMode}
+          mapRef={mapViewRef}
+          onStepClick={handleStepClick}
+          activeStepId={activeStepId}
+          onHoverZone={setHighlightedZone}
+          onHoverFrac={setTimelineHoverFrac}
         />
       </div>
 
@@ -163,7 +205,7 @@ function AppContent({ darkMode, setDarkMode }) {
       </div>
 
       <DarkModeToggle onChange={setDarkMode} />
-      <WindowTaskbar darkMode={darkMode} />
+      <WindowTaskbar darkMode={darkMode} sidebarWidth={sidebarWidth} />
     </div>
   )
 }
