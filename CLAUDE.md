@@ -342,7 +342,152 @@ npm run preview   # Preview
 - [ ] **Base RAG** : indexer les 3 carnets de route PDF pour recherche contextuelle
 - [ ] **Humidité** : script Open-Meteo API → injecter dans data_model.json
 
+## Instructions Phase 2 — pour Claude Code
+
+> Phase 2 = Narration. On ajoute l'interaction avec les arrêts et la frise chronologique.
+> Même règle : une tâche à la fois, commit après chaque tâche validée visuellement.
+
+### Données disponibles (rappel)
+
+- `data_model.json` : 156 étapes, champs `name`, `location` (city/region/country), `weather` (condition/temperature), `zone`, `is_releve`, `releves[]`, `description` (souvent vide)
+- `trip.json` : export Polarsteps brut, 156 étapes dans `all_steps[]`, avec `description` (135/156 remplies), `weather_condition`, `weather_temperature` (152/156). Lien via `uuid` = `polarsteps_uuid`.
+- Les descriptions Polarsteps sont dans `trip.json > all_steps[].description`, PAS dans `data_model.json`.
+
 ---
+
+### Tâche 2.0 — Enrichir les données côté client
+
+Avant de construire l'UI, il faut fusionner les données de `trip.json` dans `data_model.json` côté client.
+
+1. Créer un hook `useStepsData()` dans `src/hooks/` qui :
+   - Charge `data_model.json` et `trip.json`
+   - Pour chaque step de `data_model.json`, trouve le step correspondant dans `trip.json` via `polarsteps_uuid === uuid`
+   - Fusionne le champ `description` de trip.json dans chaque step
+   - Retourne les steps enrichis + les meta (zones)
+2. Ce hook remplace tout chargement direct de `data_model.json` dans les composants existants
+3. Vérifier que la carte, le tracé et les marqueurs fonctionnent toujours avec ce hook
+4. `npm run dev` → tout doit être identique visuellement
+
+---
+
+### Tâche 2.1 — Système de fenêtres flottantes (FloatingWindow)
+
+C'est le composant fondation de toute la Phase 2. Chaque fenêtre est style OS.
+
+1. Créer `src/components/FloatingWindow/FloatingWindow.jsx`
+2. La fenêtre a :
+   - **Barre de titre** : icône + titre + boutons minimiser (—) et fermer (×)
+   - **Corps** : contenu enfant (children)
+   - **Déplaçable** par drag & drop sur la barre de titre
+   - **Redimensionnable** (optionnel, coin bas-droit)
+   - **Position initiale** configurable via props, centrée par défaut
+   - **z-index** : la fenêtre cliquée passe au premier plan
+3. Créer un **gestionnaire de fenêtres** (`useWindowManager` hook ou contexte) :
+   - Gère la liste des fenêtres ouvertes (id, type, position, minimisée, z-index)
+   - Permet d'ouvrir, fermer, minimiser, restaurer une fenêtre
+   - Gère le z-index (focus = au-dessus)
+4. Les fenêtres **minimisées** apparaissent comme des petits onglets dans une barre en bas de l'écran
+5. Style : fond blanc, bordure fine grise, ombre légère, coins arrondis. Cohérent light/dark mode.
+6. Tester avec une fenêtre de démo (texte "Hello") : ouvrir, déplacer, minimiser, restaurer, fermer.
+
+---
+
+### Tâche 2.2 — Hub arrêt (StopHub) — Arrêt simple
+
+Au clic sur un marqueur d'arrêt simple (`is_releve: false`), afficher un hub compact.
+
+1. Créer `src/components/StopHub/StopHub.jsx`
+2. Le hub s'ouvre **comme une FloatingWindow** (déplaçable, minimisable, fermable)
+3. Contenu du hub — arrêt simple :
+   - **En-tête** : nom de l'étape (gras), ville — région — pays (sous-titre)
+   - **Météo** : icône météo + température en °C
+     - Mapper `weather.condition` vers des icônes : `clear-day` → ☀️, `partly-cloudy-day` → ⛅, `cloudy` → ☁️, `rain` → 🌧, `snow` → ❄️
+   - **Accroche** : première phrase de la `description` (tronquée à ~150 caractères si longue)
+   - **Bouton** 📝 "Lire la suite" → ouvre la description complète dans une NOUVELLE FloatingWindow indépendante
+4. La couleur de la zone (bande latérale ou accent en haut) identifie visuellement la zone géographique
+5. Le hub se ferme au clic sur ×, ou quand on clique sur un autre marqueur (le nouveau hub remplace l'ancien)
+6. Tester : cliquer sur un marqueur → le hub s'ouvre avec les bonnes infos
+
+---
+
+### Tâche 2.3 — Hub arrêt (StopHub) — Arrêt-relevé
+
+Au clic sur un marqueur d'arrêt-relevé (`is_releve: true`), le hub a du contenu supplémentaire.
+
+1. Même composant `StopHub.jsx`, mais avec une section en plus quand `is_releve === true` :
+   - **Badge habitat** : affiche `releves[0].habitat_type` sous l'en-tête (ex: "Trullo", "Darbazi", "Yourte")
+   - **Barre de boutons-icônes** en bas du hub. Chaque bouton n'apparaît QUE si le contenu correspondant existe :
+     - 📷 Photos → `assets.photos.length > 0`
+     - 📐 Coupes/Dessins → `assets.drawings.length > 0`
+     - 🧊 3D → `assets.model_3d !== null`
+     - 📝 Texte → `description` non vide
+     - ✏️ Croquis → `assets.sketches.length > 0`
+2. Pour l'instant, les boutons photos/coupes/3D/croquis affichent un `console.log` (les viewers viendront plus tard). Seul le bouton 📝 ouvre la description en FloatingWindow.
+3. Le badge habitat a un style distinct (fond coloré léger, typographie différente) — vocabulaire archi : "Relevé architectural".
+4. Tester : cliquer sur un marqueur relevé → hub avec badge habitat + barre de boutons
+
+**Note** : la plupart des `assets` sont vides pour l'instant (les photos et dessins seront ajoutés plus tard via l'admin Phase 4). Les boutons ne s'afficheront donc que quand il y a du contenu. Le bouton 📝 Texte fonctionnera pour les 135 étapes qui ont une description.
+
+---
+
+### Tâche 2.4 — Fenêtre description (TextViewer)
+
+Le bouton 📝 du hub ouvre la description complète dans une FloatingWindow.
+
+1. Créer `src/components/TextViewer/TextViewer.jsx`
+2. La fenêtre affiche :
+   - Titre : nom de l'étape
+   - Sous-titre : ville, pays — date
+   - Corps : la description complète de trip.json
+   - Scroll si le texte est long
+3. C'est une FloatingWindow indépendante — on peut donc avoir le hub ET la fenêtre texte ouverts en même temps, les déplacer séparément
+4. Tester : ouvrir un hub → cliquer 📝 → la fenêtre texte s'ouvre à côté
+
+---
+
+### Tâche 2.5 — Frise chronologique (Timeline)
+
+Barre horizontale en bas de l'écran, synchronisée avec la carte.
+
+1. Créer `src/components/Timeline/Timeline.jsx`
+2. Barre fixe en bas, hauteur ~60px, largeur 100%
+3. La barre est divisée en **segments colorés par zone** (mêmes couleurs que le tracé), proportionnels à la durée dans chaque zone
+4. Afficher les **noms de pays** le long de la frise aux transitions de pays
+5. Afficher les **dates** de début et fin du voyage aux extrémités
+6. Au **survol** d'un segment : tooltip avec le nom de la zone + dates
+7. Au **clic** sur un point de la frise : la carte zoom/pan vers la position correspondante sur le tracé
+8. **Marqueur de position** : un curseur vertical sur la frise indique où on se trouve quand on navigue sur la carte
+9. Pas de lecture automatique pour l'instant (play/pause viendra plus tard si besoin)
+10. Style : fond semi-transparent, cohérent light/dark mode, ne doit pas cacher la carte (légère transparence ou retrait)
+
+---
+
+### Tâche 2.6 — Synchronisation carte ↔ frise
+
+Connecter la frise et la carte.
+
+1. Quand on **clique sur la frise** → la carte s'anime (flyTo) vers la position correspondante
+2. Quand on **déplace la carte** manuellement → le curseur de la frise suit pour indiquer la zone visible
+3. Au **survol d'un segment** de la frise → le tronçon correspondant sur la carte se met en surbrillance (épaisseur ou opacité augmentée)
+4. Le tout doit être fluide, pas de saccade
+
+---
+
+### Vérification Phase 2
+
+Quand toutes les tâches sont faites, vérifier :
+- [ ] `npm run dev` démarre sans erreur
+- [ ] `npm run build` compile sans erreur
+- [ ] Clic sur un arrêt simple → hub avec nom, lieu, météo, accroche, bouton texte
+- [ ] Clic sur un arrêt-relevé → hub avec badge habitat + barre de boutons
+- [ ] Bouton 📝 → ouvre la description en fenêtre flottante indépendante
+- [ ] Les fenêtres sont déplaçables, minimisables, fermables
+- [ ] Plusieurs fenêtres simultanées possibles
+- [ ] La frise chronologique affiche les zones colorées + pays + dates
+- [ ] Clic sur la frise → la carte suit
+- [ ] Navigation carte → la frise suit
+- [ ] Tout fonctionne en light ET dark mode
+- [ ] Aucune donnée hardcodée — tout vient de data_model.json / trip.json
 
 ## Journal de bord
 
