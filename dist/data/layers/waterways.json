@@ -1,0 +1,65 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [28.95, 44.40] },
+      "properties": { "name": "Danube", "type": "river" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [45.30, 41.55] },
+      "properties": { "name": "Koura", "type": "river" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [62.50, 39.50] },
+      "properties": { "name": "Amou-Daria", "type": "river" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [67.00, 41.20] },
+      "properties": { "name": "Syr-Daria", "type": "river" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [106.50, 37.00] },
+      "properties": { "name": "Fleuve Jaune", "type": "river" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [112.00, 30.40] },
+      "properties": { "name": "Yangtsé", "type": "river" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [18.00, 37.50] },
+      "properties": { "name": "Méditerranée", "type": "sea" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [34.00, 43.50] },
+      "properties": { "name": "Mer Noire", "type": "sea" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [51.50, 41.50] },
+      "properties": { "name": "Mer Caspienne", "type": "sea" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [59.60, 45.00] },
+      "properties": { "name": "Mer d'Aral", "type": "sea" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [125.00, 29.00] },
+      "properties": { "name": "Mer de Chine orientale", "type": "sea" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [135.00, 40.00] },
+      "properties": { "name": "Mer du Japon", "type": "sea" }
+    }
+  ]
+}

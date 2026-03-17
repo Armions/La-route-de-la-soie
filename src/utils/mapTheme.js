@@ -208,4 +208,41 @@ export function applyTheme(map, mode) {
     map.setPaintProperty('steps-simple', 'circle-stroke-color', t.markerStroke)
     map.setPaintProperty('steps-releve', 'circle-stroke-color', t.markerStroke)
   } catch (_) {}
+
+  // Capitals layer theme
+  try {
+    const capColor = mode === 'dark' ? '#c0c0c0' : '#3a3a3a'
+    const capHalo = mode === 'dark' ? '#1e1e22' : '#e8e8e8'
+    const capStroke = mode === 'dark' ? '#1e1e22' : '#ffffff'
+    map.setPaintProperty('capitals-marker', 'circle-color', capColor)
+    map.setPaintProperty('capitals-marker', 'circle-stroke-color', capStroke)
+    map.setPaintProperty('capitals-label', 'text-color', capColor)
+    map.setPaintProperty('capitals-label', 'text-halo-color', capHalo)
+  } catch (_) {}
+
+  // Contour lines theme
+  try {
+    const contourLine = mode === 'dark' ? '#555555' : '#999999'
+    const contourText = mode === 'dark' ? '#666666' : '#888888'
+    const contourHalo = mode === 'dark' ? '#1e1e22' : '#e8e8e8'
+    map.setPaintProperty('contour-lines', 'line-color', contourLine)
+    map.setPaintProperty('contour-labels', 'text-color', contourText)
+    map.setPaintProperty('contour-labels', 'text-halo-color', contourHalo)
+  } catch (_) {}
+
+  // Waterways labels theme
+  try {
+    const wwColor = mode === 'dark' ? '#6BA0B8' : '#5B8FA8'
+    const wwHalo = mode === 'dark' ? '#1e1e22' : '#e8e8e8'
+    map.setPaintProperty('waterways-label-rivers', 'text-color', wwColor)
+    map.setPaintProperty('waterways-label-rivers', 'text-halo-color', wwHalo)
+    map.setPaintProperty('waterways-label-seas', 'text-color', wwColor)
+    map.setPaintProperty('waterways-label-seas', 'text-halo-color', wwHalo)
+  } catch (_) {}
+
+  // Climate zones theme
+  try {
+    const climateHalo = mode === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.8)'
+    map.setPaintProperty('climate-zones-label', 'text-halo-color', climateHalo)
+  } catch (_) {}
 }

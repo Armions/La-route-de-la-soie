@@ -1,0 +1,70 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [2.3522, 48.8566] },
+      "properties": { "name": "Paris", "country": "France" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [12.4964, 41.9028] },
+      "properties": { "name": "Rome", "country": "Italie" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [23.7275, 37.9838] },
+      "properties": { "name": "Athènes", "country": "Grèce" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [32.8597, 39.9334] },
+      "properties": { "name": "Ankara", "country": "Turquie" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [44.8271, 41.7151] },
+      "properties": { "name": "Tbilissi", "country": "Géorgie" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [44.5152, 40.1872] },
+      "properties": { "name": "Erevan", "country": "Arménie" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [37.6173, 55.7558] },
+      "properties": { "name": "Moscou", "country": "Russie" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [71.4491, 51.1694] },
+      "properties": { "name": "Astana", "country": "Kazakhstan" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [69.2401, 41.2995] },
+      "properties": { "name": "Tachkent", "country": "Ouzbékistan" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [74.5698, 42.8746] },
+      "properties": { "name": "Bichkek", "country": "Kirghizstan" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [116.4074, 39.9042] },
+      "properties": { "name": "Pékin", "country": "Chine" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [114.1694, 22.3193] },
+      "properties": { "name": "Hong Kong", "country": "Hong Kong" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [139.6917, 35.6895] },
+      "properties": { "name": "Tokyo", "country": "Japon" }
+    }
+  ]
+}

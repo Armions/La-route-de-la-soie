@@ -213,6 +213,70 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
       map.setTerrain({ source: 'mapbox-dem', exaggeration: 0 })
 
       // ============================================================
+      // B2. CONTOUR LINES — mapbox-terrain-v2 vector source
+      // ============================================================
+      map.addSource('mapbox-terrain-v2', {
+        type: 'vector',
+        url: 'mapbox://mapbox.mapbox-terrain-v2',
+      })
+
+      // Contour lines — thin gray, hidden by default
+      // index field: 1 = minor contour, 5 = medium (500m intervals), 10 = major (1000m)
+      map.addLayer(
+        {
+          id: 'contour-lines',
+          type: 'line',
+          source: 'mapbox-terrain-v2',
+          'source-layer': 'contour',
+          minzoom: 4,
+          paint: {
+            'line-color': '#666666',
+            'line-width': [
+              'interpolate', ['linear'], ['zoom'],
+              4, ['case', ['>=', ['get', 'index'], 10], 0.8, 0],
+              7, ['case', ['>=', ['get', 'index'], 10], 1.2, ['>=', ['get', 'index'], 5], 0.7, 0],
+              9, ['case', ['>=', ['get', 'index'], 10], 1.6, ['>=', ['get', 'index'], 5], 1.0, 0.5],
+              13, ['case', ['>=', ['get', 'index'], 10], 2.2, ['>=', ['get', 'index'], 5], 1.4, 0.7],
+            ],
+            'line-opacity': [
+              'interpolate', ['linear'], ['zoom'],
+              4, ['case', ['>=', ['get', 'index'], 10], 0.7, 0],
+              7, ['case', ['>=', ['get', 'index'], 10], 0.8, ['>=', ['get', 'index'], 5], 0.5, 0],
+              9, ['case', ['>=', ['get', 'index'], 10], 0.85, ['>=', ['get', 'index'], 5], 0.65, 0.35],
+            ],
+          },
+          layout: {
+            'visibility': 'none',
+          },
+        },
+        firstSymbolId
+      )
+
+      // Altitude labels — on major contours (index >= 5), hidden by default
+      map.addLayer({
+        id: 'contour-labels',
+        type: 'symbol',
+        source: 'mapbox-terrain-v2',
+        'source-layer': 'contour',
+        minzoom: 7,
+        filter: ['>=', ['get', 'index'], 5],
+        layout: {
+          'symbol-placement': 'line',
+          'text-field': ['concat', ['to-string', ['get', 'ele']], ' m'],
+          'text-font': ['DIN Pro Regular', 'Arial Unicode MS Regular'],
+          'text-size': 10,
+          'text-max-angle': 25,
+          'text-padding': 30,
+          'visibility': 'none',
+        },
+        paint: {
+          'text-color': '#888888',
+          'text-halo-color': '#e8e8e8',
+          'text-halo-width': 1,
+        },
+      })
+
+      // ============================================================
       // C. FRENCH LABELS
       // ============================================================
       const style = map.getStyle()
@@ -345,6 +409,171 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
           'circle-stroke-width': 2.5,
         },
       })
+
+      // ============================================================
+      // F. CAPITALS LAYER — diamond markers + italic labels
+      // ============================================================
+      fetch('/data/layers/capitals.json')
+        .then((r) => r.json())
+        .then((capitalsData) => {
+          if (!map.getSource('capitals')) {
+            map.addSource('capitals', { type: 'geojson', data: capitalsData })
+          }
+
+          // Diamond marker: rotated square
+          map.addLayer({
+            id: 'capitals-marker',
+            type: 'circle',
+            source: 'capitals',
+            paint: {
+              'circle-radius': 4.5,
+              'circle-color': '#3a3a3a',
+              'circle-stroke-color': '#ffffff',
+              'circle-stroke-width': 1.2,
+            },
+            layout: {
+              'visibility': 'none',
+            },
+          })
+
+          // Italic label offset above
+          map.addLayer({
+            id: 'capitals-label',
+            type: 'symbol',
+            source: 'capitals',
+            layout: {
+              'text-field': ['get', 'name'],
+              'text-font': ['DIN Pro Italic', 'Arial Unicode MS Regular'],
+              'text-size': 12,
+              'text-offset': [0, -1.2],
+              'text-anchor': 'bottom',
+              'text-allow-overlap': false,
+              'visibility': 'none',
+            },
+            paint: {
+              'text-color': '#3a3a3a',
+              'text-halo-color': '#e8e8e8',
+              'text-halo-width': 1.2,
+            },
+          })
+        })
+        .catch(() => {})
+
+      // ============================================================
+      // G. WATERWAYS LAYER — rivers & seas labels + enhanced water style
+      // ============================================================
+      fetch('/data/layers/waterways.json')
+        .then((r) => r.json())
+        .then((waterwaysData) => {
+          if (!map.getSource('waterways-labels')) {
+            map.addSource('waterways-labels', { type: 'geojson', data: waterwaysData })
+          }
+
+          // River labels — smaller, along the route
+          map.addLayer({
+            id: 'waterways-label-rivers',
+            type: 'symbol',
+            source: 'waterways-labels',
+            filter: ['==', ['get', 'type'], 'river'],
+            layout: {
+              'text-field': ['get', 'name'],
+              'text-font': ['DIN Pro Italic', 'Arial Unicode MS Regular'],
+              'text-size': 11,
+              'text-letter-spacing': 0.05,
+              'text-allow-overlap': false,
+              'visibility': 'none',
+            },
+            paint: {
+              'text-color': '#5B8FA8',
+              'text-halo-color': '#e8e8e8',
+              'text-halo-width': 1,
+            },
+          })
+
+          // Sea labels — larger, spaced out
+          map.addLayer({
+            id: 'waterways-label-seas',
+            type: 'symbol',
+            source: 'waterways-labels',
+            filter: ['==', ['get', 'type'], 'sea'],
+            layout: {
+              'text-field': ['get', 'name'],
+              'text-font': ['DIN Pro Italic', 'Arial Unicode MS Regular'],
+              'text-size': 13,
+              'text-letter-spacing': 0.15,
+              'text-allow-overlap': false,
+              'visibility': 'none',
+            },
+            paint: {
+              'text-color': '#5B8FA8',
+              'text-halo-color': '#e8e8e8',
+              'text-halo-width': 1.2,
+            },
+          })
+        })
+        .catch(() => {})
+
+      // ============================================================
+      // H. CLIMATE ZONES — Köppen-Geiger polygons
+      // ============================================================
+      fetch('/data/layers/climate_zones.json')
+        .then((r) => r.json())
+        .then((climateData) => {
+          if (!map.getSource('climate-zones')) {
+            map.addSource('climate-zones', { type: 'geojson', data: climateData })
+          }
+
+          // Filled polygons — semi-transparent, color from feature property
+          map.addLayer(
+            {
+              id: 'climate-zones-fill',
+              type: 'fill',
+              source: 'climate-zones',
+              paint: {
+                'fill-color': ['get', 'color'],
+                'fill-opacity': 0.3,
+              },
+              layout: { 'visibility': 'none' },
+            },
+            firstSymbolId
+          )
+
+          // Borders
+          map.addLayer(
+            {
+              id: 'climate-zones-border',
+              type: 'line',
+              source: 'climate-zones',
+              paint: {
+                'line-color': ['get', 'color'],
+                'line-width': 1.5,
+                'line-opacity': 0.8,
+              },
+              layout: { 'visibility': 'none' },
+            },
+            firstSymbolId
+          )
+
+          // Zone labels — code + name at centroid
+          map.addLayer({
+            id: 'climate-zones-label',
+            type: 'symbol',
+            source: 'climate-zones',
+            layout: {
+              'text-field': ['concat', ['get', 'code'], '\n', ['get', 'name']],
+              'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+              'text-size': 11,
+              'text-allow-overlap': false,
+              'visibility': 'none',
+            },
+            paint: {
+              'text-color': ['get', 'color'],
+              'text-halo-color': 'rgba(255,255,255,0.8)',
+              'text-halo-width': 1.5,
+            },
+          })
+        })
+        .catch(() => {})
 
       // Tooltip
       const popup = new mapboxgl.Popup({
