@@ -2,6 +2,10 @@ import { useState } from 'react'
 
 /**
  * Layer sections with collapsible groups — Phase 3.0
+ *
+ * Each layer can use either:
+ *   - getMapLayers(map) → array of Mapbox layer IDs to show/hide via visibility
+ *   - applyToggle(map, isOn) → custom function for paint-based toggling
  */
 const SECTIONS = [
   {
@@ -22,19 +26,18 @@ const SECTIONS = [
         },
       },
       {
-        id: 'steps',
+        id: 'steps-simple',
         label: 'Étapes',
         defaultOn: true,
         implemented: true,
-        getMapLayers: () => ['steps-simple', 'steps-releve'],
+        getMapLayers: () => ['steps-simple'],
       },
       {
-        id: 'releves-only',
+        id: 'steps-releve',
         label: 'Relevés architecturaux',
-        defaultOn: false,
+        defaultOn: true,
         implemented: true,
-        getMapLayers: () => ['steps-simple'],
-        inverted: true,
+        getMapLayers: () => ['steps-releve'],
       },
     ],
   },
@@ -43,11 +46,21 @@ const SECTIONS = [
     title: 'GÉOGRAPHIE',
     layers: [
       {
-        id: 'country-labels',
+        id: 'country-highlight',
         label: 'Pays traversés',
         defaultOn: true,
         implemented: true,
-        getMapLayers: () => ['country-label', 'continent-label'],
+        applyToggle: (map, isOn) => {
+          try {
+            if (isOn) {
+              map.setPaintProperty('country-fills-traversed', 'fill-opacity', 1)
+              map.setPaintProperty('country-fills-other', 'fill-opacity', 1)
+            } else {
+              map.setPaintProperty('country-fills-traversed', 'fill-opacity', 0)
+              map.setPaintProperty('country-fills-other', 'fill-opacity', 0)
+            }
+          } catch (_) {}
+        },
       },
       {
         id: 'capitals',
@@ -108,7 +121,6 @@ const SECTIONS = [
   },
 ]
 
-// Build flat default toggle state from all sections
 function buildDefaults() {
   const toggles = {}
   const collapsed = {}
@@ -121,17 +133,17 @@ function buildDefaults() {
   return { toggles, collapsed }
 }
 
+const DEFAULTS = buildDefaults()
+
 export default function CalquesTab({ darkMode, mapRef }) {
-  const defaults = buildDefaults()
-  const [toggles, setToggles] = useState(defaults.toggles)
-  const [collapsed, setCollapsed] = useState(defaults.collapsed)
+  const [toggles, setToggles] = useState(DEFAULTS.toggles)
+  const [collapsed, setCollapsed] = useState(DEFAULTS.collapsed)
 
   const text = darkMode ? '#d0d0d0' : '#333333'
   const textMuted = darkMode ? '#666' : '#999'
   const divider = darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'
   const trackOff = darkMode ? '#444' : '#ccc'
   const trackOn = darkMode ? '#7c8cf5' : '#4f6cf5'
-  const sectionBg = darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'
 
   function handleToggle(layerDef) {
     if (!layerDef.implemented) return
@@ -141,10 +153,15 @@ export default function CalquesTab({ darkMode, mapRef }) {
     const next = !toggles[layerDef.id]
     setToggles((prev) => ({ ...prev, [layerDef.id]: next }))
 
+    // Custom paint-based toggle (e.g. country fills)
+    if (layerDef.applyToggle) {
+      layerDef.applyToggle(map, next)
+      return
+    }
+
+    // Standard visibility toggle
     const layerIds = layerDef.getMapLayers(map)
-    const visibility = layerDef.inverted
-      ? (next ? 'none' : 'visible')
-      : (next ? 'visible' : 'none')
+    const visibility = next ? 'visible' : 'none'
     layerIds.forEach((lid) => {
       try { map.setLayoutProperty(lid, 'visibility', visibility) } catch (_) {}
     })
@@ -163,7 +180,7 @@ export default function CalquesTab({ darkMode, mapRef }) {
           {/* Section header — clickable to collapse */}
           <button
             onClick={() => toggleSection(section.id)}
-            className="flex items-center justify-between w-full py-1.5 px-1 cursor-pointer select-none group"
+            className="flex items-center justify-between w-full py-1.5 px-1 cursor-pointer select-none"
           >
             <span
               className="text-[10px] font-semibold uppercase tracking-wider"
@@ -186,23 +203,23 @@ export default function CalquesTab({ darkMode, mapRef }) {
           {!collapsed[section.id] && (
             <div className="flex flex-col gap-0.5 mt-1">
               {section.layers.map((layerDef) => (
-                <label
+                <div
                   key={layerDef.id}
                   className="flex items-center justify-between py-1.5 px-1 select-none"
                   style={{
                     cursor: layerDef.implemented ? 'pointer' : 'default',
                     opacity: layerDef.implemented ? 1 : 0.35,
                   }}
+                  onClick={() => layerDef.implemented && handleToggle(layerDef)}
                 >
                   <span className="text-xs" style={{ color: text }}>
                     {layerDef.label}
                   </span>
 
                   {layerDef.implemented ? (
-                    <button
+                    <div
                       role="switch"
                       aria-checked={toggles[layerDef.id]}
-                      onClick={() => handleToggle(layerDef)}
                       className="relative inline-flex items-center rounded-full transition-colors duration-200 ml-3 shrink-0"
                       style={{
                         width: 34,
@@ -220,13 +237,13 @@ export default function CalquesTab({ darkMode, mapRef }) {
                             : 'translateX(2px)',
                         }}
                       />
-                    </button>
+                    </div>
                   ) : (
                     <span className="text-[10px] italic ml-3 shrink-0" style={{ color: textMuted }}>
                       Bientôt
                     </span>
                   )}
-                </label>
+                </div>
               ))}
             </div>
           )}
