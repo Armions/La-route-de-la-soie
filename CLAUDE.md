@@ -9,6 +9,7 @@
 > 6. Chaque fenêtre flottante est **déplaçable, minimisable, fermable** — style fenêtre d'OS. Multiples simultanées.
 > 7. Données extérieures = **sources open source ou académiques uniquement**.
 > 8. Ce n'est PAS une app de cartographie classique ni un dashboard. C'est un **objet éditorial interactif** — un atlas augmenté.
+> 9. **TOUT en français** dans l'interface : noms de pays, labels, boutons, tooltips, dates (mai, juin... pas May, June).
 
 ---
 
@@ -28,18 +29,27 @@
 route-de-la-soie/
 ├── public/data/
 │   ├── data_model.json          # 156 étapes + 14 habitats relevés
-│   └── locations.json           # Tracé GPS (10 742 points)
+│   ├── locations.json           # Tracé GPS (10 742 points)
+│   ├── trip.json                # Export Polarsteps brut (descriptions)
+│   └── layers/                  # Données GeoJSON calques thématiques
+│       ├── capitals.json
+│       ├── climate_zones.json
+│       ├── cultural_regions.json
+│       └── geopolitics.json
 ├── src/
 │   ├── components/
 │   │   ├── Map/                 # Carte Mapbox + calques
+│   │   ├── Sidebar/             # Panneau latéral (onglets Voyage + Calques + Atlas)
 │   │   ├── Timeline/            # Frise chronologique
 │   │   ├── FloatingWindow/      # Système fenêtres flottantes (drag, minimize, close)
 │   │   ├── StopHub/             # Hub arrêt (simple ou relevé)
+│   │   ├── TextViewer/          # Fenêtre description complète
 │   │   ├── PhotoViewer/         # Viewer photo (image + miniatures)
 │   │   ├── ModelViewer/         # Viewer 3D (.glb)
-│   │   ├── LayerPanel/          # Panneau calques
+│   │   ├── Atlas/               # Atlas des 14 habitats vernaculaires
 │   │   └── Admin/               # Console admin (phase 4)
 │   ├── hooks/
+│   │   └── useStepsData.js      # Fusion data_model.json + trip.json
 │   ├── utils/
 │   ├── App.jsx
 │   └── main.jsx
@@ -51,81 +61,133 @@ route-de-la-soie/
 
 ## Design carte
 
-La carte est l'élément central, elle occupe tout l'écran. Ce n'est pas un fond de carte utilitaire — c'est l'identité visuelle du projet. Le relief du terrain, sculpté par les ombres du hillshade, fait la beauté de la carte. Pense aux cartes relief d'Eduard Imhof ou au style Stamen Terrain.
+La carte est l'élément central, elle occupe tout l'espace à droite de la sidebar. Ce n'est pas un fond de carte utilitaire — c'est l'identité visuelle du projet. Le relief du terrain, sculpté par les ombres du hillshade, fait la beauté de la carte. Pense aux cartes relief d'Eduard Imhof ou au style Stamen Terrain.
 
 **Style :**
 - Hillshade en **nuances de gris** (SRTM / Mapbox Terrain) comme couche de base permanente
-- Fond neutre et sobre. Océans en aplat profond et mat
+- Fond neutre et sobre. Océans en aplat gris foncé mat (#2a2a2e)
 - Typographie fine et contemporaine : serif léger pour noms de pays, sans-serif pour villes
 - Le tracé coloré du voyage = **seul élément chromatique fort** sur le fond gris
 - Courbes topographiques activables (calque dédié, désactivé par défaut)
+- Ambiance CLAIRE et lumineuse — atlas contemporain, pas mode sombre
 
 **Affichage sélectif :**
-- Seuls les pays traversés sont détaillés (villes, régions)
-- Pays hors itinéraire = fond neutre, seuls éléments physiques visibles (montagnes, fleuves, mers)
+- Pays traversés (France, Italie, Grèce, Turquie, Géorgie, Arménie, Russie, Kazakhstan, Ouzbékistan, Kirghizstan, Chine, Japon) = plus clairs, détaillés (villes, régions)
+- Pays hors itinéraire = fond grisé neutre, moins de détails, seuls éléments physiques visibles
 - Le regard est naturellement guidé le long du tracé
+
+---
+
+## Sidebar (panneau latéral)
+
+Panneau fixe à gauche (~320px), rétractable via bouton chevron. Trois onglets en haut.
+
+### Onglet VOYAGE (actif par défaut)
+- **Titre** : "Notre Route de la Soie" (serif élégant) + sous-titre
+- **Compteurs** : 34 869 km | 13 pays | 7 mois | 156 étapes (depuis data_model.json > meta)
+- **Chapitres** (= zones) : pastille couleur + nom + nombre d'étapes → clic = flyTo sur la zone
+- **Liste des 156 étapes** : scrollable, groupée par zone, pastille + nom + ville + date. Clic = centre carte + ouvre hub. Étape active surlignée. Relevés avec indicateur visuel.
+
+### Onglet CALQUES
+Sections repliables :
+- **Voyage** : Tracé, Étapes, Relevés architecturaux
+- **Géographie** : Pays traversés, Capitales, Fleuves & mers, Courbes topographiques
+- **Thématique** : Climat (Köppen-Geiger), Régions culturelles
+- **Contexte** : Contexte géopolitique (conflits + frontières + pays déconseillés), Réseau ferré
+
+### Onglet ATLAS
+Grille des 14 habitats vernaculaires relevés. Clic → centre carte + ouvre hub relevé.
 
 ---
 
 ## Calques thématiques
 
-Panneau latéral avec toggles activables/désactivables :
-
-**Géographie physique** — fleuves, mers, montagnes, steppes, déserts. Les textures visuelles doivent **épouser la géographie réelle** (données d'élévation + land cover). Petits triangles pour montagnes, pointillés pour déserts, traits ondulés pour steppes — appliqués sur les zones réelles, pas des patates schématiques.
+**Géographie physique** — fleuves, mers, montagnes, steppes, déserts. Les textures visuelles doivent **épouser la géographie réelle** (données d'élévation + land cover).
 
 **Courbes topographiques** — calque dédié, désactivé par défaut.
 
-**Climat** — classification Köppen-Geiger. Sélection d'un climat = mise en valeur des zones correspondantes, le reste grisé.
+**Climat** — classification Köppen-Geiger (d'après Beck et al., 2023). Polygones GeoJSON à ~200 km de l'itinéraire :
 
-**Régions culturelles** — bassin méditerranéen, Caucase, Asie centrale, monde chinois, archipel japonais. Même logique : sélection = mise en valeur + grisage.
+| Zone traversée | Code Köppen | Nom français | Description |
+|---|---|---|---|
+| France | Cfb | Océanique | Températures modérées, pluies réparties toute l'année |
+| Italie du Sud, Grèce, côte turque | Csa | Méditerranéen chaud | Étés secs et chauds, hivers doux et humides |
+| Turquie intérieure | Dsa/Dsb | Continental à été sec | Hivers froids, étés secs, forte amplitude thermique |
+| Géorgie, Arménie | Dfa/Dfb | Continental humide | Hivers froids, précipitations toute l'année |
+| Kazakhstan, Ouzbékistan | BSk | Semi-aride froid (steppe) | Faibles précipitations, hivers froids, étés chauds |
+| Kirghizstan (altitude) | Dwb/Dwc | Continental subarctique | Hivers très froids et secs, étés courts |
+| Xinjiang (Chine ouest) | BWk | Aride froid (désert) | Très faibles précipitations, amplitude thermique extrême |
+| Chine est (Fujian, Zhejiang) | Cfa | Subtropical humide | Étés chauds et humides, hivers doux |
+| Japon (Kii, Tokyo) | Cfa | Subtropical humide | Chaud et humide, mousson estivale |
 
-**Conflits** — calque statique, désactivé par défaut. Uniquement ceux ayant impacté le trajet : guerre en Ukraine (détour Caucase), Haut-Karabakh, tensions Géorgie, Xinjiang.
+Sélection d'un climat = mise en valeur de la zone, le reste grisé. Créditer "Classification Köppen-Geiger, d'après Beck et al., 2023, Scientific Data".
 
-**Réseau ferré** — source OSM, calque activable, désactivé par défaut.
+**Régions culturelles** — 5 aires : bassin méditerranéen, Caucase, Asie centrale, monde chinois, archipel japonais. Même logique : sélection = mise en valeur + grisage.
 
-**Capitales** — des pays traversés, calque dédié.
+**Contexte géopolitique (mai-déc 2025)** — calque unique, désactivé par défaut, avec 3 niveaux visuels. Ce calque montre les contraintes géopolitiques qui ont influencé le choix de l'itinéraire.
+
+*Rouge foncé (polygones pleins)* — Conflits actifs / zones occupées :
+- Ukraine : zone occupée par la Russie (Donbass, Crimée, Zaporijjia, Kherson) + zone de front
+- Haut-Karabakh : zone du conflit Arménie/Azerbaïdjan
+- Ossétie du Sud + Abkhazie : régions sécessionnistes de Géorgie occupées par la Russie depuis 2008
+
+*Traits tiretés rouges* — Frontières terrestres fermées/infranchissables :
+- Turquie ↔ Arménie (fermée depuis 1993)
+- Arménie ↔ Azerbaïdjan (fermée, conflit Karabakh)
+
+*Rouge clair transparent* — Pays déconseillés par le MEAE / Fil d'Ariane :
+- Iran (formellement déconseillé, frontières terrestres non praticables)
+- Russie (formellement déconseillé — traversée effectuée malgré tout, Vladikavkaz → Astrakhan)
+- Azerbaïdjan (inaccessible depuis l'Arménie, déconseillé)
+
+Tooltip au survol de chaque zone : nom, dates, impact concret sur l'itinéraire (1-2 phrases FR). Note générale "Situation en date du voyage, mai-déc 2025. Source : Fil d'Ariane / MEAE France".
+
+**Réseau ferré** — source OSM/Mapbox, calque activable, désactivé par défaut.
+
+**Capitales** — 13 capitales des pays traversés, calque dédié.
 
 ---
 
 ## Fenêtres flottantes & arrêts
 
-Toutes les fenêtres sont style OS (barre de titre, boutons minimiser/fermer), **déplaçables** par drag & drop, **minimisables** en barre en bas, **fermables**. On peut en ouvrir **plusieurs simultanément** pour comparer.
+Toutes les fenêtres sont style OS (barre de titre, boutons minimiser/fermer), **déplaçables** par drag & drop (transform:translate3d pour performance), **minimisables** en barre en bas (au-dessus de la frise, après la sidebar), **fermables**. On peut en ouvrir **plusieurs simultanément** pour comparer.
 
 ### Au clic sur un arrêt — aperçu immédiat dans le hub
 
 **Tous les arrêts affichent :**
-- En-tête : titre, ville, région, pays
-- Météo au passage : icône (☀️🌤☁️🌧❄️) + température + humidité
-- Première phrase de la description Polarsteps (accroche)
+- En-tête : titre, ville, région, pays (en français)
+- Bande de couleur de la zone en accent
+- Météo au passage : icône (☀️⛅☁️🌧❄️) + température °C
+- Première phrase de la description Polarsteps (accroche ~150 car)
 
-> Température + condition viennent de trip.json (152/156 étapes).
-> Humidité à récupérer via API Open-Meteo Historical Weather (dates + coordonnées).
+> Descriptions viennent de trip.json (135/156 étapes), fusionnées via hook useStepsData.
 
 ### Arrêt simple (142 étapes)
-Aperçu + bouton 📝 pour ouvrir la description complète en fenêtre flottante.
+Aperçu + bouton 📝 "Lire la suite" → ouvre la description complète en FloatingWindow (TextViewer).
 
 ### Arrêt-relevé (13 étapes, 14 habitats)
-Aperçu + **type d'habitat** dans l'en-tête + **barre de boutons-icônes** (chaque bouton n'apparaît que si le contenu existe) :
+Aperçu + **badge "RELEVÉ ARCHITECTURAL"** avec `habitat_type` + **barre de boutons-icônes** :
 
-| Bouton | Ouvre | Fenêtre |
-|--------|-------|---------|
-| 📷 Photos | Viewer : grande image + bande miniatures + navigation flèches | Flottante indépendante |
-| 📐 Coupes/Dessins | Relevés architecturaux (coupes, élévations, axonométries) | Flottante indépendante |
-| 🧊 3D | Viewer maquette .glb (orbite, zoom, rotation) | Flottante indépendante |
-| 📝 Texte | Description / récit complet | Flottante indépendante |
-| ✏️ Croquis | Croquis réalisés sur place | Flottante indépendante |
-
-On peut donc avoir à l'écran : la carte + le hub arrêt + le viewer photo + le viewer 3D, tout déplaçable.
+| Bouton | Ouvre | Condition |
+|--------|-------|-----------|
+| 📷 Photos | Viewer photo | `assets.photos.length > 0` |
+| 📐 Coupes/Dessins | Relevés architecturaux | `assets.drawings.length > 0` |
+| 🧊 3D | Viewer maquette .glb | `assets.model_3d !== null` |
+| 📝 Lire la suite | Description complète (TextViewer) | `description` non vide |
+| ✏️ Croquis | Croquis de terrain | `assets.sketches.length > 0` |
 
 ---
 
 ## Frise chronologique
 
-Barre horizontale en bas de la carte, synchronisée avec la vue cartographique :
-- Curseur déplaçable = la carte suit
-- Codes couleurs identiques carte/frise par zone géographique
-- Survol d'un segment = surbrillance du tronçon correspondant sur la carte
-- Dates clés et noms de pays affichés
+Barre horizontale fixe en bas de la carte (~60px), synchronisée :
+- Segments colorés par zone, proportionnels à la durée
+- Noms de pays en français aux transitions
+- Dates de début (6 mai 2025) et fin (18 déc 2025) aux extrémités
+- Petits traits verticaux pour chaque arrêt (relevés plus visibles)
+- Curseur de position qui suit la navigation carte
+- Survol = trait vertical + point lumineux sur le tracé GPS de la carte
+- Clic = flyTo vers la position correspondante
 
 ---
 
@@ -135,7 +197,7 @@ Barre horizontale en bas de la carte, synchronisée avec la vue cartographique :
 `coordinates`, `date_start`, `date_end`, `weather`, `zone`, `polarsteps_uuid`, tracé GPS (locations.json)
 
 ### Données éditables (via admin phase 4)
-`name`, `description` (pré-rempli Polarsteps), `location.*`, relevés (`habitat_type`, `fonction`, `surface`, `climat`, `periode_construction`, `materiaux`), `assets` (photos, drawings, sketches, model_3d)
+`name`, `description`, `location.*`, relevés (`habitat_type`, `fonction`, `surface`, `climat`, `periode_construction`, `materiaux`), `assets`
 
 ### Zones géographiques
 
@@ -169,145 +231,142 @@ Barre horizontale en bas de la carte, synchronisée avec la vue cartographique :
 
 ---
 
-## Sources extérieures (open source / académiques uniquement)
+## Sources extérieures
 
-| Donnée | Source | Format |
-|--------|--------|--------|
-| Frontières, pays | Natural Earth | GeoJSON |
-| Fleuves, mers | Natural Earth | GeoJSON |
-| Hillshade | SRTM (NASA) / Mapbox Terrain | Raster |
-| Courbes topo | OpenTopography / SRTM | Contours |
-| Climat | Köppen-Geiger (Beck 2018) | Raster |
-| Land cover | ESA WorldCover | Raster |
-| Réseau ferré | OpenStreetMap | GeoJSON |
-| Conflits | ACLED / UCDP | GeoJSON |
-| Humidité historique | Open-Meteo Historical API | JSON |
+| Donnée | Source | Licence |
+|--------|--------|---------|
+| Frontières, pays | Natural Earth | Public domain |
+| Fleuves, mers | Natural Earth / Mapbox | Public domain |
+| Hillshade | SRTM (NASA) / Mapbox Terrain | Open |
+| Courbes topo | Mapbox Terrain | Open |
+| Climat | Köppen-Geiger (Beck et al. 2023) | CC BY 4.0 |
+| Réseau ferré | OpenStreetMap / Mapbox | ODbL |
+| Contexte géopolitique | Fil d'Ariane / MEAE + frontières OSM | 9 zones statiques |
 
 ---
 
 ## Phasage
 
-### Phase 1 — Socle (CRITIQUE)
-Carte hillshade gris custom, tracé coloré par zone, 156 marqueurs, calques de base (pays, capitales, fleuves, topo), dark mode toggle
+### Phase 1 — Socle ✅ FAIT
+Carte hillshade gris, tracé coloré par zone, 156 marqueurs, dark mode toggle, panneau calques basique
 
-### Phase 2 — Narration (HAUTE)
-Frise chrono synchronisée, fenêtres flottantes (hub aperçu + boutons → viewers), calque arrêts/relevés
+### Phase 2 — Narration ✅ FAIT
+Sidebar (Voyage + Calques), fenêtres flottantes, hub arrêt (simple + relevé), TextViewer, frise chrono, curseur interactif
 
-### Phase 3 — Atlas (MOYENNE)
-Calques climat/régions culturelles/textures paysage épousant la géo/ferré/conflits statiques
+### Phase 3 — Atlas ⬜ EN COURS
+Calques thématiques, atlas des 14 habitats
 
-### Phase 4 — Outils (BASSE)
-Admin (contenu éditorial uniquement), viewer 3D (.glb), export JPEG
+### Phase 4 — Outils
+Admin, viewer 3D (.glb), viewer photo, export JPEG
 
 ---
 
-## Instructions Phase 1 — pour Claude Code
+## Instructions Phase 3 — pour Claude Code
 
-> Ces instructions sont destinées à Claude Code. Elles détaillent chaque micro-tâche de la Phase 1.
-> Après chaque tâche complétée, l'utilisateur fera un commit. Ne jamais enchaîner plusieurs tâches sans validation.
+> Après chaque tâche complétée, l'utilisateur fera un commit.
 
-### Prérequis
+### Tâche 3.0 — Restructurer l'onglet Calques
 
-Le projet utilise Vite + React + Tailwind CSS + Mapbox GL JS. Le token Mapbox est dans `.env` sous `VITE_MAPBOX_TOKEN`. Ne jamais committer le `.env`.
+1. Sections repliables : Voyage / Géographie / Thématique / Contexte
+2. Titre cliquable pour replier/déplier chaque section
+3. Toggle ON/OFF par calque
+4. Calques non implémentés : toggle grisé + "Bientôt"
 
-### Tâche 1.0 — Scaffolding
+### Tâche 3.1 — Calque Capitales
 
-1. `npm create vite@latest . -- --template react` (dans le repo existant)
-2. `npm install mapbox-gl`
-3. `npm install -D tailwindcss @tailwindcss/vite` et configurer Tailwind v4 avec le plugin Vite
-4. Créer l'arborescence `src/components/{Map,Timeline,FloatingWindow,StopHub,PhotoViewer,ModelViewer,LayerPanel,Admin}/`
-5. Créer `src/hooks/` et `src/utils/`
-6. S'assurer que `public/data/data_model.json`, `public/data/locations.json` et `public/data/trip.json` existent
-7. Ajouter `.env` au `.gitignore`
-8. `npm run dev` → doit afficher "Hello" dans le navigateur
+1. `public/data/layers/capitals.json` : Paris, Rome, Athènes, Ankara, Tbilissi, Erevan, Moscou, Astana, Tachkent, Bichkek, Pékin, Hong Kong, Tokyo
+2. Marqueurs : losange/étoile, gris foncé, label italique
+3. Toggle Calques > Géographie. Désactivé par défaut.
 
-### Tâche 1.1 — Carte hillshade gris
+### Tâche 3.2 — Calque Fleuves & mers
 
-La carte est l'identité visuelle du projet. Le style doit être un **hillshade en nuances de gris** (comme les cartes d'Eduard Imhof ou Stamen Terrain). Ce n'est PAS un fond Mapbox standard.
+1. Activer/styliser calques `water` et `waterway` Mapbox
+2. Labels : Danube, Koura, Amou-Daria, Syr-Daria, Fleuve Jaune, Yangtsé, Méditerranée, Mer Noire, Mer Caspienne, Mer d'Aral, Mer de Chine orientale, Mer du Japon
+3. Lignes bleues fines (#5B8FA8), labels italique gris-bleu
+4. Toggle Calques > Géographie. Désactivé par défaut.
 
-**Approche recommandée :** Utiliser le style Mapbox `mapbox://styles/mapbox/light-v11` comme base, puis :
-- Supprimer ou griser tous les calques de couleur (parcs, eau colorée, bâtiments)
-- Ajouter `mapbox-terrain` comme source raster-dem
-- Ajouter un calque `hillshade` avec les paramètres : exagération 0.3-0.5, ombre couleur `#333`, lumière couleur `#fff`, direction lumière 315°
-- Océans / mers : aplat gris foncé mat (#2a2a2e en light mode, #1a1a1e en dark mode)
-- Labels : typographie fine. Noms de pays en serif léger (si possible), villes en sans-serif
-- Désaturer complètement le fond (saturation des couleurs du style à 0)
+### Tâche 3.3 — Calque Courbes topographiques
 
-**Rendu cible :** fond gris avec relief sculpté par les ombres, pas de couleur sauf le tracé du voyage.
+1. Source `mapbox-terrain` (déjà chargée) ou calques contours Mapbox
+2. Lignes fines (#999), labels altitude tous les 500-1000m
+3. Toggle Calques > Géographie. Désactivé par défaut.
 
-La carte doit être **plein écran** (100vw × 100vh), centrée sur `[50, 55]` (centre approximatif du voyage, Asie centrale), zoom initial 3.
+### Tâche 3.4 — Calque Climat (Köppen-Geiger)
 
-**Token :** `import.meta.env.VITE_MAPBOX_TOKEN`
+1. `public/data/layers/climate_zones.json` : 9 polygones GeoJSON, bande ~200 km autour de l'itinéraire
+   - Cfb Océanique (France) — #5B8FA8
+   - Csa Méditerranéen chaud (Italie, Grèce, côte turque) — #F5C542
+   - Dsa/Dsb Continental à été sec (Turquie intérieure) — #D4845A
+   - Dfa/Dfb Continental humide (Géorgie, Arménie) — #6BAF6B
+   - BSk Semi-aride froid / steppe (Kazakhstan, Ouzbékistan) — #C9A84C
+   - Dwb/Dwc Continental subarctique (Kirghizstan) — #8B7EC8
+   - BWk Aride froid / désert (Xinjiang) — #D4A574
+   - Cfa Subtropical humide (Chine est) — #5AAF8F
+   - Cfa Subtropical humide (Japon) — #5A8FBF
+2. Semi-transparent (opacité 0.3) + bordure colorée
+3. Légende : pastille + code Köppen + nom FR + description
+4. Mode sélection : clic légende → seule cette zone colorée, reste grisé
+5. Crédit "Classification Köppen-Geiger, d'après Beck et al., 2023"
+6. Toggle Calques > Thématique. Désactivé par défaut.
 
-### Tâche 1.2 — Tracé coloré par zone
+### Tâche 3.5 — Calque Régions culturelles
 
-1. Charger `public/data/locations.json` (10 742 points avec lat, lon, time)
-2. Charger `public/data/data_model.json` pour les zones et couleurs
-3. Les points de `locations.json` sont **non ordonnés** — les trier par `time` (timestamp croissant)
-4. Segmenter le tracé par zone géographique :
-   - Pour chaque point GPS, trouver l'étape la plus proche temporellement dans `data_model.json`
-   - Attribuer la zone de cette étape au point
-   - Créer un segment GeoJSON `LineString` par zone contiguë
-5. Afficher chaque segment avec la couleur de sa zone (voir `meta.zones`)
-6. Le tracé doit être l'**unique élément chromatique** sur le fond gris
-7. Épaisseur de ligne : 2-3px, avec un léger halo blanc/noir selon le mode pour lisibilité
+1. `public/data/layers/cultural_regions.json` : 5 polygones
+   - Bassin méditerranéen, Caucase, Asie centrale, Monde chinois, Archipel japonais
+2. Semi-transparent, couleurs douces, labels au centre
+3. Mode sélection : clic → mise en valeur, reste grisé
+4. Toggle Calques > Thématique. Désactivé par défaut.
 
-**Zones et couleurs :**
-| Zone | Couleur | Pays |
-|------|---------|------|
-| europe | #6B7280 | France |
-| mediterranee | #F59E0B | Italie, Grèce, Turquie |
-| caucase | #EF4444 | Géorgie, Arménie |
-| transit | #9CA3AF | Russie, Kazakhstan |
-| asie_centrale | #8B5CF6 | Ouzbékistan, Kirghizstan |
-| chine | #EC4899 | Chine, Hong Kong |
-| japon | #3B82F6 | Japon |
+### Tâche 3.6 — Calque Contexte géopolitique
 
-### Tâche 1.3 — Marqueurs des 156 étapes
+Calque unique avec 3 niveaux visuels. Fichier `public/data/layers/geopolitics.json`.
 
-1. Charger les 156 étapes depuis `data_model.json > steps`
-2. Deux types de marqueurs :
-   - **Arrêt simple** (`is_releve: false`) : petit cercle (6-8px), bordure blanche, fond = couleur de zone
-   - **Arrêt-relevé** (`is_releve: true`) : cercle plus grand (10-12px) + bordure plus épaisse, même couleur de zone — doit être visuellement distinct
-3. Au **survol** d'un marqueur : tooltip avec le `name` de l'étape
-4. Au **clic** : pour l'instant, `console.log` de l'étape (le hub arrêt viendra en Phase 2)
-5. Les marqueurs doivent se superposer au tracé (z-index supérieur)
+**Niveau 1 — Conflits actifs / zones occupées (rouge foncé #C0392B, opacité 0.4) :**
+1. **Ukraine** — polygone couvrant les zones occupées par la Russie : Crimée, Donbass (Donetsk, Louhansk), Zaporijjia, Kherson. Tooltip : "Invasion russe (2022-). Raison principale du détour par le Caucase au lieu de traverser la Russie depuis l'Europe."
+2. **Haut-Karabakh** — polygone de la région. Tooltip : "Conflit Arménie-Azerbaïdjan. Offensive azerbaïdjanaise de sept. 2023, exode de la population arménienne."
+3. **Ossétie du Sud** — polygone. Tooltip : "Région sécessionniste de Géorgie, occupée par la Russie depuis 2008."
+4. **Abkhazie** — polygone. Tooltip : "Région sécessionniste de Géorgie, occupée par la Russie depuis 2008."
 
-### Tâche 1.4 — Toggle dark/light mode
+**Niveau 2 — Frontières fermées (traits tiretés rouges #E74C3C, stroke-dasharray) :**
+5. **Turquie ↔ Arménie** — ligne tiretée sur la frontière. Tooltip : "Frontière fermée depuis 1993. Passage par la Géorgie obligatoire."
+6. **Arménie ↔ Azerbaïdjan** — ligne tiretée sur la frontière. Tooltip : "Frontière fermée. Conflit du Haut-Karabakh."
 
-1. Bouton discret en haut à droite (icône soleil/lune)
-2. **Light mode (défaut)** : fond carte gris clair, hillshade clair, labels sombres, océans #2a2a2e
-3. **Dark mode** : fond carte gris foncé, hillshade adapté, labels clairs, océans #0f0f12
-4. Le hillshade (relief) doit rester lisible dans les deux modes
-5. L'UI autour de la carte (futur panneau calques, etc.) doit aussi basculer
-6. Stocker la préférence dans `localStorage`
+**Niveau 3 — Pays déconseillés MEAE / Fil d'Ariane (rouge clair #E74C3C, opacité 0.15) :**
+7. **Iran** — polygone du pays entier. Tooltip : "Formellement déconseillé par le MEAE. Frontières terrestres non praticables pour le voyage."
+8. **Russie** — polygone du pays entier. Tooltip : "Formellement déconseillé par le MEAE depuis 2022. Traversée effectuée (Vladikavkaz → Astrakhan → Atyrau) malgré la recommandation."
+9. **Azerbaïdjan** — polygone du pays entier. Tooltip : "Inaccessible depuis l'Arménie. Relations diplomatiques rompues."
 
-**Implémentation :** changer dynamiquement les propriétés des calques Mapbox (`setPaintProperty`, `setLayoutProperty`) plutôt que de charger un style différent.
+**Texte d'introduction** affiché quand le calque est activé : "Contraintes géopolitiques en date du voyage (mai-déc 2025) ayant influencé le choix de l'itinéraire. Source : Fil d'Ariane / MEAE France."
 
-### Tâche 1.5 — Panneau calques basique
+**Légende** dans le panneau calques :
+- ■ rouge foncé = Conflit actif / zone occupée
+- --- trait tireté = Frontière fermée
+- ■ rouge clair = Pays déconseillé (MEAE)
 
-1. Icône "couches" (ou hamburger) en haut à gauche, au clic déploie un petit panneau
-2. Le panneau se replie au clic en dehors ou sur l'icône
-3. Toggles disponibles (Phase 1) :
-   - ☑ Tracé du voyage
-   - ☑ Étapes (marqueurs)
-   - ☑ Noms des pays traversés
-4. Chaque toggle masque/affiche le calque Mapbox correspondant
-5. Style du panneau : fond semi-transparent, coins arrondis, cohérent avec light/dark mode
-6. Les calques "Courbes topo", "Climat", "Réseau ferré" etc. viendront en Phase 3 — **ne pas les ajouter maintenant**, mais prévoir l'extensibilité du composant
+Toggle Calques > Contexte. Désactivé par défaut.
 
-### Vérification Phase 1
+### Tâche 3.7 — Calque Réseau ferré
 
-Quand toutes les tâches sont faites, vérifier :
-- [ ] `npm run dev` démarre sans erreur
-- [ ] `npm run build` compile sans erreur
-- [ ] La carte s'affiche plein écran avec hillshade gris
-- [ ] Le tracé est coloré par zone (7 couleurs visibles)
-- [ ] Les 156 marqueurs sont affichés (13 visuellement distincts)
-- [ ] Le dark mode fonctionne (toggle + persistence)
-- [ ] Le panneau calques toggle les 3 calques
-- [ ] Aucune donnée n'est hardcodée — tout vient de data_model.json / locations.json
-- [ ] Le .env n'est PAS dans le repo git
+1. Activer calques rail/transit Mapbox pour les pays traversés
+2. Lignes tiretées (#888)
+3. Toggle Calques > Contexte. Désactivé par défaut.
+
+### Tâche 3.8 — Atlas des 14 habitats
+
+1. `src/components/Atlas/Atlas.jsx`
+2. 3e onglet "ATLAS" dans la sidebar
+3. Grille : nom habitat + pays + village + icônes représentations (coupe ✓, schéma ✓, 3D ✓)
+4. Clic → centre carte + ouvre hub relevé
+5. Style sobre, esthétique atlas
+
+### Vérification Phase 3
+
+- [ ] Onglet Calques restructuré avec sections repliables
+- [ ] 7 calques fonctionnels (capitales, fleuves, topo, climat, régions, géopolitique, ferré)
+- [ ] Climat : 9 zones, légende Köppen, mode sélection
+- [ ] Calque Contexte géopolitique : 3 niveaux (conflits rouge foncé, frontières tiretées, pays déconseillés rouge clair), tooltips FR, légende
+- [ ] Atlas : onglet avec grille 14 habitats
+- [ ] Tout désactivé par défaut, tout en FR, light + dark mode OK
 
 ---
 
@@ -318,12 +377,7 @@ Quand toutes les tâches sont faites, vérifier :
 - Tailwind CSS, pas de CSS custom sauf nécessité
 - Commentaires FR pour le métier, EN pour le technique
 - Toujours lire depuis `data_model.json`, ne jamais hardcoder
-
-```bash
-npm run dev       # Dev
-npm run build     # Build
-npm run preview   # Preview
-```
+- **Tout en français** dans l'interface utilisateur
 
 ---
 
@@ -336,197 +390,17 @@ npm run preview   # Preview
 
 ---
 
-## Tâches techniques futures
-
-- [ ] **Hooks pre-commit** : Husky + lint-staged pour vérifier le code à chaque commit
-- [ ] **Base RAG** : indexer les 3 carnets de route PDF pour recherche contextuelle
-- [ ] **Humidité** : script Open-Meteo API → injecter dans data_model.json
-
-## Instructions Phase 2 — pour Claude Code (RÉVISÉ)
-
-> Phase 2 = Narration + Sidebar. On ajoute le panneau latéral, l'interaction avec les arrêts et la frise.
-> La Tâche 2.0 (enrichir les données) et 2.1 (fenêtres flottantes) sont DÉJÀ FAITES.
-> Reprendre à la Tâche 2.2.
-
----
-
-### Tâche 2.2 — Panneau latéral (Sidebar) avec onglets
-
-Panneau fixe à gauche de la carte, ~320px de large, rétractable. La carte occupe l'espace restant. C'est la colonne vertébrale de l'app. Le panneau a **deux onglets** en haut.
-
-#### Onglet 1 — VOYAGE (actif par défaut)
-
-Contenu de haut en bas :
-
-1. **En-tête** :
-   - Titre : "Notre Route de la Soie" (typographie serif léger, élégant)
-   - Sous-titre : "Deux architectes sur les traces de la mythique Route de la Soie"
-
-2. **Compteurs** en ligne horizontale :
-   - 34 869 KILOMÈTRES | 13 PAYS | 7 MOIS | 156 ÉTAPES
-   - Lire les valeurs depuis `data_model.json > meta` (`total_km`, `total_steps`, `total_releves`)
-   - Le nombre de pays et de mois peut être hardcodé (13 et 7)
-   - Style : gros chiffres, légende en petites capitales dessous
-
-3. **Chapitres** (= zones géographiques) :
-   - Liste verticale : pastille de couleur + nom de zone + nombre d'étapes dans cette zone (aligné à droite)
-   - Zones dans l'ordre : Bassin méditerranéen (25), Caucase (21), Asie centrale (23), Chine (41), Japon (46)
-   - Note : la zone "europe" (France seule, 1 étape) et "transit" (Russie-Kazakhstan) ne sont pas des "chapitres" narratifs — les inclure quand même mais visuellement moins proéminents
-   - Au **clic** sur un chapitre → la carte fait un `flyTo` pour cadrer la zone correspondante
-
-4. **Liste des étapes** :
-   - Liste scrollable de toutes les 156 étapes
-   - Chaque étape affiche : pastille couleur de zone + nom de l'étape + ville + date
-   - Les étapes-relevés (`is_releve: true`) ont un indicateur visuel (icône 📐 ou bordure distincte)
-   - Au **clic** sur une étape → la carte centre sur cette étape + ouvre le hub arrêt (Tâche 2.4)
-   - L'étape active (cliquée) est **surlignée** dans la liste
-   - La liste scroll automatiquement vers l'étape active quand on clique un marqueur sur la carte
-
-#### Onglet 2 — CALQUES
-
-Remplace et absorbe le panneau calques flottant créé en Phase 1 (Tâche 1.5). Supprimer l'ancien panneau calques flottant.
-
-1. **Calques de base** (Phase 2) — toggles ON/OFF :
-   - ☑ Tracé du voyage
-   - ☑ Étapes (marqueurs)
-   - ☑ Noms des pays traversés
-   - ☐ Relevés architecturaux uniquement (filtre pour n'afficher que les 13 arrêts-relevés)
-   - ☐ Capitales des pays traversés
-
-2. **Calques thématiques** (Phase 3 — DÉSACTIVÉS, afficher en grisé avec mention "Bientôt") :
-   - Géographie physique (fleuves, montagnes, steppes, déserts)
-   - Courbes topographiques
-   - Climat (Köppen-Geiger)
-   - Régions culturelles
-   - Conflits
-   - Réseau ferré
-   - NE PAS les implémenter maintenant, juste afficher les noms grisés pour montrer ce qui arrive
-
-#### Comportement général du panneau
-
-1. Un bouton (chevron ◀/▶) permet de **replier/déplier** la sidebar
-2. Quand repliée → la carte prend toute la largeur, le bouton reste visible pour réouvrir
-3. La carte Mapbox doit appeler `map.resize()` après chaque ouverture/fermeture pour s'adapter
-4. Le bouton dark mode reste en haut à droite de la carte (pas dans la sidebar)
-5. Style : fond blanc, typo fine, sobre — style atlas/éditorial. En dark mode : fond gris foncé.
-6. Les onglets sont des tabs simples en haut du panneau : "Voyage" | "Calques"
-
----
-
-### Tâche 2.3 — Hub arrêt simple (StopHub)
-
-Au clic sur un marqueur d'arrêt simple (`is_releve: false`) OU au clic sur une étape dans la sidebar :
-
-1. Créer `src/components/StopHub/StopHub.jsx`
-2. Le hub s'ouvre comme une **FloatingWindow** (déplaçable, minimisable, fermable)
-3. Contenu :
-   - **En-tête** : nom de l'étape (gras) + ville — région — pays
-   - **Bande de couleur** latérale ou accent en haut = couleur de la zone
-   - **Météo** : icône + température °C. Mapper `weather.condition` : `clear-day` → ☀️, `partly-cloudy-day` → ⛅, `cloudy` → ☁️, `rain` → 🌧, `snow` → ❄️
-   - **Accroche** : première phrase de la description (tronquée ~150 caractères)
-   - **Bouton** 📝 "Lire la suite" → ouvre la description complète dans une NOUVELLE FloatingWindow
-4. Le hub se ferme quand on clique sur un autre marqueur (remplacé par le nouveau)
-5. Quand un hub s'ouvre → l'étape correspondante se **surligne** dans la liste de la sidebar
-
----
-
-### Tâche 2.4 — Hub arrêt-relevé (StopHub enrichi)
-
-Même composant `StopHub.jsx`, section supplémentaire quand `is_releve === true` :
-
-1. **Badge habitat** sous l'en-tête : affiche `releves[0].habitat_type` (ex: "Trullo", "Darbazi", "Yourte")
-   - Label "Relevé architectural" en petites capitales au-dessus
-   - Style : fond coloré léger, typo distincte
-
-2. **Barre de boutons-icônes** en bas du hub. Chaque bouton n'apparaît QUE si le contenu existe :
-   - 📷 Photos → `assets.photos.length > 0`
-   - 📐 Coupes/Dessins → `assets.drawings.length > 0`
-   - 🧊 3D → `assets.model_3d !== null`
-   - 📝 Texte → description non vide
-   - ✏️ Croquis → `assets.sketches.length > 0`
-
-3. Pour l'instant seul le bouton 📝 fonctionne (ouvre la description). Les autres affichent un `console.log` — les viewers viendront plus tard.
-
-**Note** : la plupart des `assets` sont vides. Le bouton 📝 fonctionnera pour les 135 étapes avec description.
-
----
-
-### Tâche 2.5 — Fenêtre description (TextViewer)
-
-Le bouton 📝 ouvre la description complète dans une FloatingWindow indépendante.
-
-1. Créer `src/components/TextViewer/TextViewer.jsx`
-2. Contenu :
-   - Titre : nom de l'étape
-   - Sous-titre : ville, pays — date
-   - Corps : description complète de trip.json (via le hook useStepsData)
-   - Scroll si texte long
-3. C'est une FloatingWindow indépendante — on peut avoir le hub ET la fenêtre texte ouverts simultanément
-4. Tester : cliquer marqueur → hub → 📝 → fenêtre texte à côté
-
----
-
-### Tâche 2.6 — Frise chronologique (Timeline)
-
-Barre horizontale fixe en bas de l'écran.
-
-1. Créer `src/components/Timeline/Timeline.jsx`
-2. Hauteur ~60px, largeur 100% (de la sidebar au bord droit)
-3. Divisée en **segments colorés par zone**, proportionnels à la durée dans chaque zone
-4. Afficher les **noms de pays** aux transitions
-5. **Dates** de début (6 mai 2025) et fin (18 déc 2025) aux extrémités
-6. Au **survol** d'un segment : tooltip avec nom de zone + dates
-7. Au **clic** : la carte fait un `flyTo` vers la position correspondante
-8. **Curseur vertical** indiquant la position actuelle quand on navigue sur la carte
-9. Style : fond semi-transparent, cohérent light/dark mode
-
----
-
-### Tâche 2.7 — Synchronisation carte ↔ sidebar ↔ frise
-
-Tout est connecté :
-
-1. **Clic marqueur sur la carte** → hub s'ouvre + étape surlignée dans sidebar + curseur frise se positionne
-2. **Clic étape dans la sidebar** → carte centre sur l'étape + hub s'ouvre + curseur frise se positionne
-3. **Clic sur la frise** → carte s'anime vers la position + étape la plus proche surlignée dans sidebar
-4. **Survol segment frise** → tronçon correspondant en surbrillance sur la carte
-5. **Navigation libre carte** (pan/zoom) → curseur frise suit la zone visible
-6. Le tout doit être fluide, sans saccade
-
----
-
-### Vérification Phase 2
-
-- [ ] `npm run dev` démarre sans erreur
-- [ ] `npm run build` compile sans erreur
-- [ ] Sidebar avec onglet Voyage : titre, compteurs, chapitres, liste 156 étapes
-- [ ] Sidebar avec onglet Calques : toggles de base fonctionnels, calques Phase 3 grisés
-- [ ] Sidebar rétractable (la carte s'adapte)
-- [ ] Clic étape sidebar → carte centre + hub s'ouvre
-- [ ] Clic marqueur carte → hub s'ouvre + étape surlignée dans sidebar
-- [ ] Hub arrêt simple : nom, lieu, météo, accroche, bouton texte
-- [ ] Hub arrêt-relevé : badge habitat + barre de boutons
-- [ ] Bouton 📝 → description complète en fenêtre flottante indépendante
-- [ ] Fenêtres déplaçables, minimisables, fermables, multiples simultanées
-- [ ] Frise chrono en bas : segments colorés, pays, dates, clic → carte suit
-- [ ] Synchronisation carte ↔ sidebar ↔ frise fluide
-- [ ] Tout fonctionne en light ET dark mode
-- [ ] Aucune donnée hardcodée
-
 ## Journal de bord
 
-> À chaque fin de session, résumer en 5 lignes max : ce qui a été fait, les choix, les modifications, les problèmes, et la suite.
-
 ### 2026-03-09 — Session 1 : Cadrage du projet
-- Rédaction du **product brief v2** (itérations : hillshade gris Stamen Terrain, pas de craft, light mode par défaut).
-- Création du **data_model_v2.json** : 156 étapes Polarsteps × matrice Excel 14 habitats (13 étapes). Champs éditables : surface, climat, fonction, matériaux, période.
-- Correction relevé japonais : **maison traditionnelle à Kata** (péninsule de Kii, étape 118), pas minka Tokyo.
-- UX fenêtres : hub avec aperçu (nom, lieu, météo, accroche) + barre boutons-icônes → chaque bouton = fenêtre flottante indépendante.
-- **Prochaine session** : installer outils, créer repo GitHub, lancer prototype Phase 1 via Claude Code.
+- Rédaction du product brief v2. Création du data_model_v2.json. Correction relevé japonais (Kata, pas Tokyo). UX fenêtres flottantes.
 
 ### 2026-03-09 — Session 2 : Préparation kit Claude Code
-- Ajout des **instructions Phase 1 détaillées** dans CLAUDE.md : 6 tâches numérotées (1.0 scaffolding → 1.5 panneau calques) avec specs techniques précises pour chaque composant.
-- Création du **GUIDE_DEMARRAGE.md** : procédure pas-à-pas pour non-développeur (installation Node/Git/Claude Code, création repo, première commande, règles d'or, gestion erreurs).
-- Analyse de `locations.json` : points GPS non ordonnés (timestamps mélangés), le code devra les trier par `time` avant segmentation par zone.
-- Stratégie définie : micro-incréments + commit après chaque tâche validée visuellement.
-- **Prochaine session** : lancer Claude Code avec la Tâche 1.0 (scaffolding), puis avancer tâche par tâche jusqu'à Phase 1 complète.
+- Instructions Phase 1 détaillées dans CLAUDE.md. GUIDE_DEMARRAGE.md créé. Analyse locations.json (tri par timestamp nécessaire).
+
+### 2026-03-16 — Session 3 : Installation + Phase 1 + Phase 2
+- Installation complète (Node.js, Git, SSH, Claude Code Opus) sur Windows.
+- Phase 1 complète : carte hillshade, tracé 7 couleurs, 156 marqueurs, dark mode, calques. Corrections style carte (désaturation, affichage sélectif pays).
+- Phase 2 complète : sidebar Voyage/Calques, hub arrêt simple + relevé, FloatingWindow (drag/minimize/multi), TextViewer, frise chrono synchronisée, curseur interactif frise→carte.
+- Corrections : encodage °C, espacement design, traduction FR, fenêtres minimisées (z-index, position).
+- **Prochaine session** : Phase 3 (calques thématiques + atlas habitats).
