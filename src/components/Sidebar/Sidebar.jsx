@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import VoyageTab from './VoyageTab'
 import CalquesTab from './CalquesTab'
+import Atlas from '../Atlas/Atlas'
 
 /**
  * Sidebar — panneau latéral gauche, 320px, deux onglets.
@@ -42,6 +43,7 @@ export default function Sidebar({
         {[
           { id: 'voyage', label: 'Voyage' },
           { id: 'calques', label: 'Calques' },
+          { id: 'atlas', label: 'Atlas' },
         ].map((t) => (
           <button
             key={t.id}
@@ -79,8 +81,15 @@ export default function Sidebar({
             activeStepId={activeStepId}
             mapRef={mapRef}
           />
-        ) : (
+        ) : tab === 'calques' ? (
           <CalquesTab darkMode={darkMode} mapRef={mapRef} />
+        ) : (
+          <Atlas
+            darkMode={darkMode}
+            steps={steps}
+            meta={meta}
+            onStepClick={onStepClick}
+          />
         )}
       </div>
     </div>
