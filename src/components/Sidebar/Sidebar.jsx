@@ -14,6 +14,7 @@ export default function Sidebar({
   onStepClick,
   activeStepId,
   mapRef,
+  onCulturalFilter,
 }) {
   const [tab, setTab] = useState('voyage')
 
@@ -82,7 +83,7 @@ export default function Sidebar({
             mapRef={mapRef}
           />
         ) : tab === 'calques' ? (
-          <CalquesTab darkMode={darkMode} mapRef={mapRef} />
+          <CalquesTab darkMode={darkMode} mapRef={mapRef} onCulturalFilter={onCulturalFilter} />
         ) : (
           <Atlas
             darkMode={darkMode}

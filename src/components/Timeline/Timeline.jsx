@@ -43,7 +43,7 @@ function countryFr(name) {
   return COUNTRY_FR[name] || name
 }
 
-export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, activeStepId, onHoverZone, onHoverFrac }) {
+export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, activeStepId, onHoverZone, onHoverFrac, filterCountries }) {
   const barRef = useRef(null)
   const [hoverInfo, setHoverInfo] = useState(null)
   const [hoverSegIdx, setHoverSegIdx] = useState(null)
@@ -53,7 +53,16 @@ export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, a
   const { segments, totalDays, dateStart, dateEnd, countryLabels, stepTicks } = useMemo(() => {
     if (!steps || steps.length === 0) return { segments: [], totalDays: 1, dateStart: null, dateEnd: null, countryLabels: [], stepTicks: [] }
 
-    const sorted = [...steps].sort((a, b) => {
+    // Filter by cultural region countries if active
+    let sourceSteps = steps
+    if (filterCountries && filterCountries.length > 0) {
+      sourceSteps = steps.filter((s) =>
+        filterCountries.includes(s.location?.country_code)
+      )
+      if (sourceSteps.length === 0) return { segments: [], totalDays: 1, dateStart: null, dateEnd: null, countryLabels: [], stepTicks: [] }
+    }
+
+    const sorted = [...sourceSteps].sort((a, b) => {
       const da = parseDate(a.date_start)
       const db = parseDate(b.date_start)
       if (!da || !db) return (a.id - b.id)
@@ -128,7 +137,7 @@ export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, a
     })
 
     return { segments, totalDays, dateStart, dateEnd, countryLabels, stepTicks }
-  }, [steps, meta])
+  }, [steps, meta, filterCountries])
 
   // Active step cursor position
   const activeFrac = useMemo(() => {

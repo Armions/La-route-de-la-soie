@@ -39,6 +39,9 @@ export const THEMES = {
     hillshadeHighlight: '#fafafa',
     hillshadeAccent: '#888888',
     hillshadeExaggeration: 0.75,
+    // Country outlines
+    countryOutline: '#000000',
+    countryOutlineOpacity: 0.5,
     // Route / markers
     haloLine: 'rgba(0,0,0,0.3)',
     markerStroke: '#ffffff',
@@ -67,6 +70,8 @@ export const THEMES = {
     hillshadeHighlight: '#3a3a40',
     hillshadeAccent: '#1a1a1e',
     hillshadeExaggeration: 0.7,
+    countryOutline: '#666666',
+    countryOutlineOpacity: 0.3,
     haloLine: 'rgba(0,0,0,0.5)',
     markerStroke: '#1e1e22',
   },
@@ -203,6 +208,12 @@ export function applyTheme(map, mode) {
     }
   }
 
+  // Country outlines (traversed)
+  try {
+    map.setPaintProperty('country-outlines-traversed', 'line-color', t.countryOutline)
+    map.setPaintProperty('country-outlines-traversed', 'line-opacity', t.countryOutlineOpacity)
+  } catch (_) {}
+
   // Marker strokes
   try {
     map.setPaintProperty('steps-simple', 'circle-stroke-color', t.markerStroke)
@@ -244,5 +255,11 @@ export function applyTheme(map, mode) {
   try {
     const climateHalo = mode === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.8)'
     map.setPaintProperty('climate-zones-label', 'text-halo-color', climateHalo)
+  } catch (_) {}
+
+  // Cultural regions label theme
+  try {
+    const culturalHalo = mode === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.85)'
+    map.setPaintProperty('cultural-regions-label', 'text-halo-color', culturalHalo)
   } catch (_) {}
 }

@@ -26,6 +26,7 @@ function AppContent({ darkMode, setDarkMode }) {
   const [activeStepId, setActiveStepId] = useState(null)
   const [highlightedZone, setHighlightedZone] = useState(null)
   const [timelineHoverFrac, setTimelineHoverFrac] = useState(null)
+  const [filterCountries, setFilterCountries] = useState(null)
   const { windows, openWindow, minimizeWindow } = useWindowManager()
   const prevHubIdRef = useRef(null)
   const skipMapMoveRef = useRef(false)
@@ -137,6 +138,7 @@ function AppContent({ darkMode, setDarkMode }) {
           onStepClick={handleStepClick}
           activeStepId={activeStepId}
           mapRef={mapViewRef}
+          onCulturalFilter={setFilterCountries}
         />
       </div>
 
@@ -167,6 +169,7 @@ function AppContent({ darkMode, setDarkMode }) {
           activeStepId={activeStepId}
           onHoverZone={setHighlightedZone}
           onHoverFrac={setTimelineHoverFrac}
+          filterCountries={filterCountries}
         />
       </div>
 

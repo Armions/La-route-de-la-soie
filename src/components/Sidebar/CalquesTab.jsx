@@ -30,11 +30,26 @@ const CULTURAL_REGIONS = [
   { id: 'japon', name: 'Archipel japonais', desc: 'Japon', color: '#7EB5D6' },
 ]
 
-const CULTURAL_MAP_LAYERS = ['cultural-regions-fill', 'cultural-regions-border', 'cultural-regions-label']
+const CULTURAL_MAP_LAYERS = [
+  'cultural-region-fill-mediterranee',
+  'cultural-region-fill-caucase',
+  'cultural-region-fill-asie-centrale',
+  'cultural-region-fill-monde-chinois',
+  'cultural-region-fill-japon',
+  'cultural-regions-label',
+]
+
+const CULTURAL_REGION_COUNTRIES = {
+  'mediterranee': ['IT', 'GR', 'TR'],
+  'caucase': ['GE', 'AM'],
+  'asie-centrale': ['KZ', 'UZ', 'KG'],
+  'monde-chinois': ['CN', 'HK'],
+  'japon': ['JP'],
+}
 
 const GEOPOLITICS_MAP_LAYERS = [
   'geopolitics-conflict-fill', 'geopolitics-conflict-border',
-  'geopolitics-deconseille-fill', 'geopolitics-deconseille-border',
+  'geopolitics-deconseille-fill',
   'geopolitics-border-line', 'geopolitics-label',
 ]
 
@@ -179,7 +194,7 @@ const SECTIONS = [
         defaultOn: false,
         implemented: true,
         applyToggle: (map, isOn) => {
-          const railLayers = ['road-rail', 'bridge-rail']
+          const railLayers = map._railLayerIds || ['road-rail', 'bridge-rail']
           railLayers.forEach((lid) => {
             try {
               if (isOn) {
@@ -187,7 +202,7 @@ const SECTIONS = [
                 map.setPaintProperty(lid, 'line-color', '#888888')
                 map.setPaintProperty(lid, 'line-opacity', 0.7)
                 map.setPaintProperty(lid, 'line-width', 1)
-                map.setPaintProperty(lid, 'line-dasharray', [4, 3])
+                try { map.setPaintProperty(lid, 'line-dasharray', [4, 3]) } catch (_) {}
               } else {
                 map.setLayoutProperty(lid, 'visibility', 'none')
               }
@@ -213,7 +228,7 @@ function buildDefaults() {
 
 const DEFAULTS = buildDefaults()
 
-export default function CalquesTab({ darkMode, mapRef }) {
+export default function CalquesTab({ darkMode, mapRef, onCulturalFilter }) {
   const [toggles, setToggles] = useState(DEFAULTS.toggles)
   const [collapsed, setCollapsed] = useState(DEFAULTS.collapsed)
   const [selectedClimate, setSelectedClimate] = useState(null)
@@ -253,6 +268,7 @@ export default function CalquesTab({ darkMode, mapRef }) {
     }
     if (layerDef.id === 'cultural-regions' && !next) {
       setSelectedCultural(null)
+      if (onCulturalFilter) onCulturalFilter(null)
     }
   }
 
@@ -300,28 +316,35 @@ export default function CalquesTab({ darkMode, mapRef }) {
     setSelectedCultural(next)
 
     try {
+      // Adjust opacity per-region fill layer
+      CULTURAL_REGIONS.forEach((region) => {
+        const layerId = `cultural-region-fill-${region.id}`
+        try {
+          if (next) {
+            map.setPaintProperty(layerId, 'fill-opacity', region.id === next ? 0.45 : 0.06)
+          } else {
+            map.setPaintProperty(layerId, 'fill-opacity', 0.25)
+          }
+        } catch (_) {}
+      })
+
+      // Label opacity
       if (next) {
-        map.setPaintProperty('cultural-regions-fill', 'fill-opacity', [
-          'case',
-          ['==', ['get', 'id'], next], 0.45,
-          0.06,
-        ])
-        map.setPaintProperty('cultural-regions-border', 'line-opacity', [
-          'case',
-          ['==', ['get', 'id'], next], 1,
-          0.12,
-        ])
         map.setPaintProperty('cultural-regions-label', 'text-opacity', [
           'case',
           ['==', ['get', 'id'], next], 1,
           0.15,
         ])
       } else {
-        map.setPaintProperty('cultural-regions-fill', 'fill-opacity', 0.25)
-        map.setPaintProperty('cultural-regions-border', 'line-opacity', 0.7)
         map.setPaintProperty('cultural-regions-label', 'text-opacity', 1)
       }
     } catch (_) {}
+
+    // Notify parent for frise filtering
+    if (onCulturalFilter) {
+      const countries = next ? (CULTURAL_REGION_COUNTRIES[next] || null) : null
+      onCulturalFilter(countries)
+    }
   }
 
   function toggleSection(sectionId) {
@@ -329,10 +352,10 @@ export default function CalquesTab({ darkMode, mapRef }) {
   }
 
   return (
-    <div className="px-4 py-4 flex flex-col gap-2">
+    <div className="px-4 py-4 flex flex-col gap-4 h-full overflow-y-auto">
       {SECTIONS.map((section, si) => (
         <div key={section.id}>
-          {si > 0 && <div style={{ borderTop: `1px solid ${divider}`, marginBottom: 8 }} />}
+          {si > 0 && <div style={{ borderTop: `1px solid ${divider}`, marginBottom: 12 }} />}
 
           {/* Section header */}
           <button
@@ -358,12 +381,12 @@ export default function CalquesTab({ darkMode, mapRef }) {
 
           {/* Section content */}
           {!collapsed[section.id] && (
-            <div className="flex flex-col gap-0.5 mt-1">
+            <div className="flex flex-col gap-1 mt-2">
               {section.layers.map((layerDef) => (
                 <div key={layerDef.id}>
                   {/* Toggle row */}
                   <div
-                    className="flex items-center justify-between py-1.5 px-1 select-none"
+                    className="flex items-center justify-between py-2.5 px-2 select-none"
                     style={{
                       cursor: layerDef.implemented ? 'pointer' : 'default',
                       opacity: layerDef.implemented ? 1 : 0.35,
@@ -386,10 +409,11 @@ export default function CalquesTab({ darkMode, mapRef }) {
                         }}
                       >
                         <span
-                          className="inline-block rounded-full bg-white shadow transition-transform duration-200"
+                          className="inline-block rounded-full shadow transition-transform duration-200"
                           style={{
                             width: 14,
                             height: 14,
+                            background: darkMode ? '#bbb' : '#ffffff',
                             transform: toggles[layerDef.id]
                               ? 'translateX(18px)'
                               : 'translateX(2px)',

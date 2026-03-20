@@ -178,6 +178,29 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
         firstNonBgLayer
       )
 
+      // Country outlines — thin black border on traversed countries, always visible
+      map.addLayer(
+        {
+          id: 'country-outlines-traversed',
+          type: 'line',
+          source: 'country-boundaries',
+          'source-layer': 'country_boundaries',
+          filter: [
+            'all',
+            ['in', ['get', 'iso_3166_1'], ['literal', TRAVERSED_COUNTRIES]],
+            ['any',
+              ['==', 'all', ['get', 'worldview']],
+              ['in', 'US', ['get', 'worldview']],
+            ],
+          ],
+          paint: {
+            'line-color': '#000000',
+            'line-width': 1,
+            'line-opacity': 0.5,
+          },
+        }
+      )
+
       // ============================================================
       // B. TERRAIN DEM + HILLSHADE
       // ============================================================
@@ -233,16 +256,16 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
             'line-color': '#666666',
             'line-width': [
               'interpolate', ['linear'], ['zoom'],
-              4, ['case', ['>=', ['get', 'index'], 10], 0.8, 0],
-              7, ['case', ['>=', ['get', 'index'], 10], 1.2, ['>=', ['get', 'index'], 5], 0.7, 0],
-              9, ['case', ['>=', ['get', 'index'], 10], 1.6, ['>=', ['get', 'index'], 5], 1.0, 0.5],
-              13, ['case', ['>=', ['get', 'index'], 10], 2.2, ['>=', ['get', 'index'], 5], 1.4, 0.7],
+              4, ['case', ['>=', ['get', 'index'], 10], 1.8, 0],
+              7, ['case', ['>=', ['get', 'index'], 10], 2.0, ['>=', ['get', 'index'], 5], 0.7, 0],
+              9, ['case', ['>=', ['get', 'index'], 10], 2.2, ['>=', ['get', 'index'], 5], 1.0, 0.5],
+              13, ['case', ['>=', ['get', 'index'], 10], 2.5, ['>=', ['get', 'index'], 5], 1.4, 0.7],
             ],
             'line-opacity': [
               'interpolate', ['linear'], ['zoom'],
-              4, ['case', ['>=', ['get', 'index'], 10], 0.7, 0],
-              7, ['case', ['>=', ['get', 'index'], 10], 0.8, ['>=', ['get', 'index'], 5], 0.5, 0],
-              9, ['case', ['>=', ['get', 'index'], 10], 0.85, ['>=', ['get', 'index'], 5], 0.65, 0.35],
+              4, ['case', ['>=', ['get', 'index'], 10], 0.85, 0],
+              7, ['case', ['>=', ['get', 'index'], 10], 0.9, ['>=', ['get', 'index'], 5], 0.5, 0],
+              9, ['case', ['>=', ['get', 'index'], 10], 0.9, ['>=', ['get', 'index'], 5], 0.65, 0.35],
             ],
           },
           layout: {
@@ -576,105 +599,111 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
         .catch(() => {})
 
       // ============================================================
-      // I. CULTURAL REGIONS — 5 grandes aires culturelles
+      // I. CULTURAL REGIONS — using real country boundaries
       // ============================================================
-      fetch('/data/layers/cultural_regions.json')
-        .then((r) => r.json())
-        .then((regionsData) => {
-          if (!map.getSource('cultural-regions')) {
-            map.addSource('cultural-regions', { type: 'geojson', data: regionsData })
-          }
+      const CULTURAL_COUNTRIES = {
+        'mediterranee': { codes: ['IT', 'GR', 'TR'], color: '#E8A87C' },
+        'caucase': { codes: ['GE', 'AM'], color: '#85C1A3' },
+        'asie-centrale': { codes: ['KZ', 'UZ', 'KG'], color: '#B8A9D4' },
+        'monde-chinois': { codes: ['CN', 'HK'], color: '#E8B4B8' },
+        'japon': { codes: ['JP'], color: '#7EB5D6' },
+      }
 
-          map.addLayer(
-            {
-              id: 'cultural-regions-fill',
-              type: 'fill',
-              source: 'cultural-regions',
-              paint: {
-                'fill-color': ['get', 'color'],
-                'fill-opacity': 0.25,
-              },
-              layout: { 'visibility': 'none' },
-            },
-            firstSymbolId
-          )
-
-          map.addLayer(
-            {
-              id: 'cultural-regions-border',
-              type: 'line',
-              source: 'cultural-regions',
-              paint: {
-                'line-color': ['get', 'color'],
-                'line-width': 2,
-                'line-opacity': 0.7,
-              },
-              layout: { 'visibility': 'none' },
-            },
-            firstSymbolId
-          )
-
-          map.addLayer({
-            id: 'cultural-regions-label',
-            type: 'symbol',
-            source: 'cultural-regions',
-            layout: {
-              'text-field': ['get', 'name'],
-              'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
-              'text-size': 13,
-              'text-allow-overlap': false,
-              'visibility': 'none',
-            },
+      Object.entries(CULTURAL_COUNTRIES).forEach(([id, { codes, color }]) => {
+        map.addLayer(
+          {
+            id: `cultural-region-fill-${id}`,
+            type: 'fill',
+            source: 'country-boundaries',
+            'source-layer': 'country_boundaries',
+            filter: [
+              'all',
+              ['in', ['get', 'iso_3166_1'], ['literal', codes]],
+              ['any',
+                ['==', 'all', ['get', 'worldview']],
+                ['in', 'US', ['get', 'worldview']],
+              ],
+            ],
             paint: {
-              'text-color': ['get', 'color'],
-              'text-halo-color': 'rgba(255,255,255,0.85)',
-              'text-halo-width': 1.8,
+              'fill-color': color,
+              'fill-opacity': 0.25,
             },
-          })
-        })
-        .catch(() => {})
+            layout: { 'visibility': 'none' },
+          },
+          firstSymbolId
+        )
+      })
+
+      // Label points for cultural regions (centroids)
+      const culturalLabels = {
+        type: 'FeatureCollection',
+        features: [
+          { type: 'Feature', properties: { id: 'mediterranee', name: 'Bassin méditerranéen', color: '#E8A87C' }, geometry: { type: 'Point', coordinates: [15.0, 40.0] } },
+          { type: 'Feature', properties: { id: 'caucase', name: 'Caucase', color: '#85C1A3' }, geometry: { type: 'Point', coordinates: [43.5, 42.0] } },
+          { type: 'Feature', properties: { id: 'asie-centrale', name: 'Asie centrale', color: '#B8A9D4' }, geometry: { type: 'Point', coordinates: [65.0, 44.0] } },
+          { type: 'Feature', properties: { id: 'monde-chinois', name: 'Monde chinois', color: '#E8B4B8' }, geometry: { type: 'Point', coordinates: [105.0, 35.0] } },
+          { type: 'Feature', properties: { id: 'japon', name: 'Archipel japonais', color: '#7EB5D6' }, geometry: { type: 'Point', coordinates: [137.0, 37.0] } },
+        ],
+      }
+      map.addSource('cultural-regions-labels', { type: 'geojson', data: culturalLabels })
+      map.addLayer({
+        id: 'cultural-regions-label',
+        type: 'symbol',
+        source: 'cultural-regions-labels',
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+          'text-size': 13,
+          'text-allow-overlap': false,
+          'visibility': 'none',
+        },
+        paint: {
+          'text-color': ['get', 'color'],
+          'text-halo-color': 'rgba(255,255,255,0.85)',
+          'text-halo-width': 1.8,
+        },
+      })
 
       // ============================================================
       // J. GEOPOLITICS — conflits, frontières fermées, pays déconseillés
       // ============================================================
+
+      // Niveau 3 — Pays déconseillés — real country boundaries
+      map.addLayer(
+        {
+          id: 'geopolitics-deconseille-fill',
+          type: 'fill',
+          source: 'country-boundaries',
+          'source-layer': 'country_boundaries',
+          filter: [
+            'all',
+            ['in', ['get', 'iso_3166_1'], ['literal', ['IR', 'RU', 'AZ']]],
+            ['any',
+              ['==', 'all', ['get', 'worldview']],
+              ['in', 'US', ['get', 'worldview']],
+            ],
+          ],
+          paint: {
+            'fill-color': '#E74C3C',
+            'fill-opacity': 0.15,
+          },
+          layout: { 'visibility': 'none' },
+        },
+        firstSymbolId
+      )
+
+      // Conflict zones + border lines from GeoJSON (sub-national areas)
       fetch('/data/layers/geopolitics.json')
         .then((r) => r.json())
         .then((geoData) => {
-          if (!map.getSource('geopolitics')) {
-            map.addSource('geopolitics', { type: 'geojson', data: geoData })
+          // Filter out deconseille features (now using country-boundaries)
+          const conflictBorderData = {
+            ...geoData,
+            features: geoData.features.filter((f) => f.properties.level !== 'deconseille'),
           }
-
-          // Niveau 3 — Pays déconseillés (fill, rouge clair)
-          map.addLayer(
-            {
-              id: 'geopolitics-deconseille-fill',
-              type: 'fill',
-              source: 'geopolitics',
-              filter: ['==', ['get', 'level'], 'deconseille'],
-              paint: {
-                'fill-color': '#E74C3C',
-                'fill-opacity': 0.15,
-              },
-              layout: { 'visibility': 'none' },
-            },
-            firstSymbolId
-          )
-
-          map.addLayer(
-            {
-              id: 'geopolitics-deconseille-border',
-              type: 'line',
-              source: 'geopolitics',
-              filter: ['==', ['get', 'level'], 'deconseille'],
-              paint: {
-                'line-color': '#E74C3C',
-                'line-width': 1,
-                'line-opacity': 0.3,
-              },
-              layout: { 'visibility': 'none' },
-            },
-            firstSymbolId
-          )
+          if (!map.getSource('geopolitics')) {
+            map.addSource('geopolitics', { type: 'geojson', data: conflictBorderData })
+          }
 
           // Niveau 1 — Conflits actifs / zones occupées (fill, rouge foncé)
           map.addLayer(
@@ -757,18 +786,47 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
         className: 'geo-tooltip',
       })
 
-      const geoLayers = [
+      // Tooltip data for deconseille countries (country-boundaries source has no tooltip props)
+      const DECONSEILLE_INFO = {
+        'IR': { name: 'Iran', tooltip: "Formellement déconseillé par le MEAE. Frontières terrestres non praticables pour le voyage." },
+        'RU': { name: 'Russie', tooltip: "Formellement déconseillé par le MEAE depuis 2022. Traversée effectuée (Vladikavkaz \u2192 Astrakhan \u2192 Atyrau) malgré la recommandation." },
+        'AZ': { name: 'Azerbaïdjan', tooltip: "Inaccessible depuis l'Arménie. Relations diplomatiques rompues." },
+      }
+
+      // Deconseille layer — uses country-boundaries, look up tooltip by ISO code
+      map.on('mouseenter', 'geopolitics-deconseille-fill', (e) => {
+        map.getCanvas().style.cursor = 'pointer'
+        const iso = e.features[0].properties.iso_3166_1
+        const info = DECONSEILLE_INFO[iso]
+        if (info) {
+          geoPopup.setLngLat(e.lngLat)
+            .setHTML(
+              `<div style="font-size:12px;line-height:1.4">` +
+              `<strong style="color:#C0392B">${info.name}</strong><br/>` +
+              `<span style="color:#555">${info.tooltip}</span></div>`
+            )
+            .addTo(map)
+        }
+      })
+      map.on('mousemove', 'geopolitics-deconseille-fill', (e) => {
+        geoPopup.setLngLat(e.lngLat)
+      })
+      map.on('mouseleave', 'geopolitics-deconseille-fill', () => {
+        map.getCanvas().style.cursor = ''
+        geoPopup.remove()
+      })
+
+      // Conflict + border layers — GeoJSON source with tooltip props
+      const geoLayersWithTooltip = [
         'geopolitics-conflict-fill',
-        'geopolitics-deconseille-fill',
         'geopolitics-border-line',
       ]
-      geoLayers.forEach((layerId) => {
+      geoLayersWithTooltip.forEach((layerId) => {
         map.on('mouseenter', layerId, (e) => {
           map.getCanvas().style.cursor = 'pointer'
           const props = e.features[0].properties
-          const lngLat = e.lngLat
           geoPopup
-            .setLngLat(lngLat)
+            .setLngLat(e.lngLat)
             .setHTML(
               `<div style="font-size:12px;line-height:1.4">` +
               `<strong style="color:#C0392B">${props.name}</strong><br/>` +
@@ -825,10 +883,39 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
         }
       })
 
-      // Hide rail layers by default (toggle via CalquesTab)
-      ;['road-rail', 'bridge-rail'].forEach((lid) => {
-        try { map.setLayoutProperty(lid, 'visibility', 'none') } catch (_) {}
-      })
+      // Railway layers — find existing or create custom
+      const railLayerIds = map.getStyle().layers
+        .filter((l) => l.id.toLowerCase().includes('rail'))
+        .map((l) => l.id)
+
+      if (railLayerIds.length > 0) {
+        railLayerIds.forEach((lid) => {
+          try { map.setLayoutProperty(lid, 'visibility', 'none') } catch (_) {}
+        })
+      } else {
+        // No rail layers in style — create from road source (mapbox-streets-v8)
+        try {
+          map.addLayer(
+            {
+              id: 'custom-rail-lines',
+              type: 'line',
+              source: 'composite',
+              'source-layer': 'road',
+              filter: ['in', ['get', 'class'], ['literal', ['major_rail', 'minor_rail', 'service_rail']]],
+              paint: {
+                'line-color': '#888888',
+                'line-width': 1,
+                'line-opacity': 0.7,
+                'line-dasharray': [4, 3],
+              },
+              layout: { 'visibility': 'none' },
+            },
+            firstSymbolId
+          )
+          railLayerIds.push('custom-rail-lines')
+        } catch (_) {}
+      }
+      map._railLayerIds = railLayerIds
 
       // Apply initial theme
       readyRef.current = true
