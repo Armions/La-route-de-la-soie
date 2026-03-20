@@ -575,7 +575,217 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
         })
         .catch(() => {})
 
-      // Tooltip
+      // ============================================================
+      // I. CULTURAL REGIONS — 5 grandes aires culturelles
+      // ============================================================
+      fetch('/data/layers/cultural_regions.json')
+        .then((r) => r.json())
+        .then((regionsData) => {
+          if (!map.getSource('cultural-regions')) {
+            map.addSource('cultural-regions', { type: 'geojson', data: regionsData })
+          }
+
+          map.addLayer(
+            {
+              id: 'cultural-regions-fill',
+              type: 'fill',
+              source: 'cultural-regions',
+              paint: {
+                'fill-color': ['get', 'color'],
+                'fill-opacity': 0.25,
+              },
+              layout: { 'visibility': 'none' },
+            },
+            firstSymbolId
+          )
+
+          map.addLayer(
+            {
+              id: 'cultural-regions-border',
+              type: 'line',
+              source: 'cultural-regions',
+              paint: {
+                'line-color': ['get', 'color'],
+                'line-width': 2,
+                'line-opacity': 0.7,
+              },
+              layout: { 'visibility': 'none' },
+            },
+            firstSymbolId
+          )
+
+          map.addLayer({
+            id: 'cultural-regions-label',
+            type: 'symbol',
+            source: 'cultural-regions',
+            layout: {
+              'text-field': ['get', 'name'],
+              'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+              'text-size': 13,
+              'text-allow-overlap': false,
+              'visibility': 'none',
+            },
+            paint: {
+              'text-color': ['get', 'color'],
+              'text-halo-color': 'rgba(255,255,255,0.85)',
+              'text-halo-width': 1.8,
+            },
+          })
+        })
+        .catch(() => {})
+
+      // ============================================================
+      // J. GEOPOLITICS — conflits, frontières fermées, pays déconseillés
+      // ============================================================
+      fetch('/data/layers/geopolitics.json')
+        .then((r) => r.json())
+        .then((geoData) => {
+          if (!map.getSource('geopolitics')) {
+            map.addSource('geopolitics', { type: 'geojson', data: geoData })
+          }
+
+          // Niveau 3 — Pays déconseillés (fill, rouge clair)
+          map.addLayer(
+            {
+              id: 'geopolitics-deconseille-fill',
+              type: 'fill',
+              source: 'geopolitics',
+              filter: ['==', ['get', 'level'], 'deconseille'],
+              paint: {
+                'fill-color': '#E74C3C',
+                'fill-opacity': 0.15,
+              },
+              layout: { 'visibility': 'none' },
+            },
+            firstSymbolId
+          )
+
+          map.addLayer(
+            {
+              id: 'geopolitics-deconseille-border',
+              type: 'line',
+              source: 'geopolitics',
+              filter: ['==', ['get', 'level'], 'deconseille'],
+              paint: {
+                'line-color': '#E74C3C',
+                'line-width': 1,
+                'line-opacity': 0.3,
+              },
+              layout: { 'visibility': 'none' },
+            },
+            firstSymbolId
+          )
+
+          // Niveau 1 — Conflits actifs / zones occupées (fill, rouge foncé)
+          map.addLayer(
+            {
+              id: 'geopolitics-conflict-fill',
+              type: 'fill',
+              source: 'geopolitics',
+              filter: ['==', ['get', 'level'], 'conflict'],
+              paint: {
+                'fill-color': '#C0392B',
+                'fill-opacity': 0.4,
+              },
+              layout: { 'visibility': 'none' },
+            },
+            firstSymbolId
+          )
+
+          map.addLayer(
+            {
+              id: 'geopolitics-conflict-border',
+              type: 'line',
+              source: 'geopolitics',
+              filter: ['==', ['get', 'level'], 'conflict'],
+              paint: {
+                'line-color': '#C0392B',
+                'line-width': 1.5,
+                'line-opacity': 0.7,
+              },
+              layout: { 'visibility': 'none' },
+            },
+            firstSymbolId
+          )
+
+          // Niveau 2 — Frontières fermées (ligne tiretée rouge)
+          map.addLayer(
+            {
+              id: 'geopolitics-border-line',
+              type: 'line',
+              source: 'geopolitics',
+              filter: ['==', ['get', 'level'], 'border'],
+              paint: {
+                'line-color': '#E74C3C',
+                'line-width': 2.5,
+                'line-opacity': 0.85,
+                'line-dasharray': [4, 3],
+              },
+              layout: { 'visibility': 'none' },
+            },
+            firstSymbolId
+          )
+
+          // Labels pour les zones de conflit et frontières
+          map.addLayer({
+            id: 'geopolitics-label',
+            type: 'symbol',
+            source: 'geopolitics',
+            filter: ['in', ['get', 'level'], ['literal', ['conflict', 'border']]],
+            layout: {
+              'text-field': ['get', 'name'],
+              'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+              'text-size': 10,
+              'text-allow-overlap': false,
+              'visibility': 'none',
+            },
+            paint: {
+              'text-color': '#C0392B',
+              'text-halo-color': 'rgba(255,255,255,0.9)',
+              'text-halo-width': 1.5,
+            },
+          })
+        })
+        .catch(() => {})
+
+      // Tooltip — geopolitics
+      const geoPopup = new mapboxgl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        offset: 10,
+        maxWidth: '280px',
+        className: 'geo-tooltip',
+      })
+
+      const geoLayers = [
+        'geopolitics-conflict-fill',
+        'geopolitics-deconseille-fill',
+        'geopolitics-border-line',
+      ]
+      geoLayers.forEach((layerId) => {
+        map.on('mouseenter', layerId, (e) => {
+          map.getCanvas().style.cursor = 'pointer'
+          const props = e.features[0].properties
+          const lngLat = e.lngLat
+          geoPopup
+            .setLngLat(lngLat)
+            .setHTML(
+              `<div style="font-size:12px;line-height:1.4">` +
+              `<strong style="color:#C0392B">${props.name}</strong><br/>` +
+              `<span style="color:#555">${props.tooltip}</span></div>`
+            )
+            .addTo(map)
+        })
+        map.on('mousemove', layerId, (e) => {
+          geoPopup.setLngLat(e.lngLat)
+        })
+        map.on('mouseleave', layerId, () => {
+          map.getCanvas().style.cursor = ''
+          geoPopup.remove()
+        })
+      })
+
+      // Tooltip — steps
       const popup = new mapboxgl.Popup({
         closeButton: false,
         closeOnClick: false,
@@ -613,6 +823,11 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
         if (onMapMoveRef.current) {
           onMapMoveRef.current(map.getCenter())
         }
+      })
+
+      // Hide rail layers by default (toggle via CalquesTab)
+      ;['road-rail', 'bridge-rail'].forEach((lid) => {
+        try { map.setLayoutProperty(lid, 'visibility', 'none') } catch (_) {}
       })
 
       // Apply initial theme

@@ -77,7 +77,7 @@ const LAYERS_TO_HIDE = [
   'national-park', 'landuse', 'land-structure-polygon', 'land-structure-line',
   'aeroway-polygon', 'aeroway-line', 'building',
   'poi-label', 'airport-label', 'road-label-simple',
-  'road-rail', 'bridge-rail', 'settlement-subdivision-label',
+  'settlement-subdivision-label',
 ]
 
 // Road layers to dim

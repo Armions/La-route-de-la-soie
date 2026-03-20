@@ -22,6 +22,22 @@ const CLIMATE_ZONES = [
 
 const CLIMATE_MAP_LAYERS = ['climate-zones-fill', 'climate-zones-border', 'climate-zones-label']
 
+const CULTURAL_REGIONS = [
+  { id: 'mediterranee', name: 'Bassin méditerranéen', desc: 'Italie, Grèce, côte turque ouest', color: '#E8A87C' },
+  { id: 'caucase', name: 'Caucase', desc: 'Géorgie, Arménie, Turquie est', color: '#85C1A3' },
+  { id: 'asie-centrale', name: 'Asie centrale', desc: 'Kazakhstan, Ouzbékistan, Kirghizstan', color: '#B8A9D4' },
+  { id: 'monde-chinois', name: 'Monde chinois', desc: 'Chine continentale, Hong Kong', color: '#E8B4B8' },
+  { id: 'japon', name: 'Archipel japonais', desc: 'Japon', color: '#7EB5D6' },
+]
+
+const CULTURAL_MAP_LAYERS = ['cultural-regions-fill', 'cultural-regions-border', 'cultural-regions-label']
+
+const GEOPOLITICS_MAP_LAYERS = [
+  'geopolitics-conflict-fill', 'geopolitics-conflict-border',
+  'geopolitics-deconseille-fill', 'geopolitics-deconseille-border',
+  'geopolitics-border-line', 'geopolitics-label',
+]
+
 const SECTIONS = [
   {
     id: 'voyage',
@@ -139,7 +155,9 @@ const SECTIONS = [
         id: 'cultural-regions',
         label: 'Régions culturelles',
         defaultOn: false,
-        implemented: false,
+        implemented: true,
+        hasLegend: 'cultural',
+        getMapLayers: () => CULTURAL_MAP_LAYERS,
       },
     ],
   },
@@ -151,13 +169,31 @@ const SECTIONS = [
         id: 'geopolitics',
         label: 'Contexte géopolitique',
         defaultOn: false,
-        implemented: false,
+        implemented: true,
+        hasLegend: 'geopolitics',
+        getMapLayers: () => GEOPOLITICS_MAP_LAYERS,
       },
       {
         id: 'railways',
         label: 'Réseau ferré',
         defaultOn: false,
-        implemented: false,
+        implemented: true,
+        applyToggle: (map, isOn) => {
+          const railLayers = ['road-rail', 'bridge-rail']
+          railLayers.forEach((lid) => {
+            try {
+              if (isOn) {
+                map.setLayoutProperty(lid, 'visibility', 'visible')
+                map.setPaintProperty(lid, 'line-color', '#888888')
+                map.setPaintProperty(lid, 'line-opacity', 0.7)
+                map.setPaintProperty(lid, 'line-width', 1)
+                map.setPaintProperty(lid, 'line-dasharray', [4, 3])
+              } else {
+                map.setLayoutProperty(lid, 'visibility', 'none')
+              }
+            } catch (_) {}
+          })
+        },
       },
     ],
   },
@@ -181,6 +217,7 @@ export default function CalquesTab({ darkMode, mapRef }) {
   const [toggles, setToggles] = useState(DEFAULTS.toggles)
   const [collapsed, setCollapsed] = useState(DEFAULTS.collapsed)
   const [selectedClimate, setSelectedClimate] = useState(null)
+  const [selectedCultural, setSelectedCultural] = useState(null)
 
   const text = darkMode ? '#d0d0d0' : '#333333'
   const textMuted = darkMode ? '#666' : '#999'
@@ -210,9 +247,12 @@ export default function CalquesTab({ darkMode, mapRef }) {
       try { map.setLayoutProperty(lid, 'visibility', visibility) } catch (_) {}
     })
 
-    // Reset climate selection when turning off
+    // Reset selection when turning off
     if (layerDef.id === 'climate' && !next) {
       setSelectedClimate(null)
+    }
+    if (layerDef.id === 'cultural-regions' && !next) {
+      setSelectedCultural(null)
     }
   }
 
@@ -247,6 +287,39 @@ export default function CalquesTab({ darkMode, mapRef }) {
         map.setPaintProperty('climate-zones-fill', 'fill-opacity', 0.3)
         map.setPaintProperty('climate-zones-border', 'line-opacity', 0.8)
         map.setPaintProperty('climate-zones-label', 'text-opacity', 1)
+      }
+    } catch (_) {}
+  }
+
+  function handleCulturalSelect(regionId) {
+    const map = mapRef.current?.getMap()
+    if (!map) return
+
+    const next = selectedCultural === regionId ? null : regionId
+
+    setSelectedCultural(next)
+
+    try {
+      if (next) {
+        map.setPaintProperty('cultural-regions-fill', 'fill-opacity', [
+          'case',
+          ['==', ['get', 'id'], next], 0.45,
+          0.06,
+        ])
+        map.setPaintProperty('cultural-regions-border', 'line-opacity', [
+          'case',
+          ['==', ['get', 'id'], next], 1,
+          0.12,
+        ])
+        map.setPaintProperty('cultural-regions-label', 'text-opacity', [
+          'case',
+          ['==', ['get', 'id'], next], 1,
+          0.15,
+        ])
+      } else {
+        map.setPaintProperty('cultural-regions-fill', 'fill-opacity', 0.25)
+        map.setPaintProperty('cultural-regions-border', 'line-opacity', 0.7)
+        map.setPaintProperty('cultural-regions-label', 'text-opacity', 1)
       }
     } catch (_) {}
   }
@@ -378,6 +451,126 @@ export default function CalquesTab({ darkMode, mapRef }) {
                         style={{ color: textMuted, borderTop: `1px solid ${divider}` }}
                       >
                         Classification Köppen-Geiger, d'après Beck et al., 2023, Scientific Data
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cultural regions legend — shown when toggle is ON */}
+                  {layerDef.hasLegend === 'cultural' && toggles[layerDef.id] && (
+                    <div
+                      className="mt-1 mb-2 mx-1 rounded-md py-2 px-2"
+                      style={{ background: legendBg }}
+                    >
+                      <div className="flex flex-col gap-1">
+                        {CULTURAL_REGIONS.map((region) => (
+                          <div
+                            key={region.id}
+                            className="flex items-start gap-2 py-1 px-1 rounded cursor-pointer transition-opacity duration-150"
+                            style={{
+                              opacity: selectedCultural && selectedCultural !== region.id ? 0.35 : 1,
+                              background: selectedCultural === region.id
+                                ? (darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)')
+                                : 'transparent',
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleCulturalSelect(region.id)
+                            }}
+                          >
+                            <span
+                              className="shrink-0 rounded-full mt-0.5"
+                              style={{
+                                width: 10,
+                                height: 10,
+                                background: region.color,
+                                border: `1.5px solid ${region.color}`,
+                              }}
+                            />
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[11px] font-medium leading-tight" style={{ color: text }}>
+                                {region.name}
+                              </span>
+                              <span className="text-[10px] leading-tight" style={{ color: textMuted }}>
+                                {region.desc}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div
+                        className="text-[9px] mt-2 pt-1.5 italic leading-tight"
+                        style={{ color: textMuted, borderTop: `1px solid ${divider}` }}
+                      >
+                        Cliquer sur une région pour la mettre en valeur
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Geopolitics legend — shown when toggle is ON */}
+                  {layerDef.hasLegend === 'geopolitics' && toggles[layerDef.id] && (
+                    <div
+                      className="mt-1 mb-2 mx-1 rounded-md py-2 px-2"
+                      style={{ background: legendBg }}
+                    >
+                      <div
+                        className="text-[10px] leading-snug mb-2 px-1"
+                        style={{ color: text }}
+                      >
+                        Contraintes géopolitiques en date du voyage (mai-déc 2025) ayant influencé le choix de l'itinéraire.
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        {/* Niveau 1 — Conflit actif */}
+                        <div className="flex items-center gap-2 px-1">
+                          <span
+                            className="shrink-0"
+                            style={{
+                              width: 12,
+                              height: 12,
+                              background: 'rgba(192,57,43,0.4)',
+                              border: '1.5px solid #C0392B',
+                              borderRadius: 2,
+                            }}
+                          />
+                          <span className="text-[10px]" style={{ color: text }}>
+                            Conflit actif / zone occupée
+                          </span>
+                        </div>
+                        {/* Niveau 2 — Frontière fermée */}
+                        <div className="flex items-center gap-2 px-1">
+                          <span
+                            className="shrink-0"
+                            style={{
+                              width: 12,
+                              height: 0,
+                              borderTop: '2.5px dashed #E74C3C',
+                            }}
+                          />
+                          <span className="text-[10px]" style={{ color: text }}>
+                            Frontière fermée
+                          </span>
+                        </div>
+                        {/* Niveau 3 — Pays déconseillé */}
+                        <div className="flex items-center gap-2 px-1">
+                          <span
+                            className="shrink-0"
+                            style={{
+                              width: 12,
+                              height: 12,
+                              background: 'rgba(231,76,60,0.15)',
+                              border: '1.5px solid rgba(231,76,60,0.4)',
+                              borderRadius: 2,
+                            }}
+                          />
+                          <span className="text-[10px]" style={{ color: text }}>
+                            Pays déconseillé (MEAE)
+                          </span>
+                        </div>
+                      </div>
+                      <div
+                        className="text-[9px] mt-2 pt-1.5 italic leading-tight"
+                        style={{ color: textMuted, borderTop: `1px solid ${divider}` }}
+                      >
+                        Source : Fil d'Ariane / MEAE France
                       </div>
                     </div>
                   )}

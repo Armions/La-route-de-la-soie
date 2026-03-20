@@ -1,0 +1,340 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ukraine-occupee",
+        "name": "Ukraine — zones occupées",
+        "level": "conflict",
+        "tooltip": "Invasion russe (2022-). Raison principale du détour par le Caucase au lieu de traverser la Russie depuis l'Europe."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [33.0, 44.4],
+            [36.5, 44.4],
+            [38.2, 47.1],
+            [40.2, 48.5],
+            [40.2, 49.5],
+            [39.0, 49.8],
+            [38.0, 49.5],
+            [37.5, 48.8],
+            [36.8, 48.2],
+            [35.8, 47.8],
+            [35.2, 47.5],
+            [34.5, 47.0],
+            [34.0, 46.5],
+            [33.5, 46.2],
+            [33.2, 45.8],
+            [32.5, 45.5],
+            [32.0, 45.2],
+            [33.0, 44.4]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "haut-karabakh",
+        "name": "Haut-Karabakh",
+        "level": "conflict",
+        "tooltip": "Conflit Arménie-Azerbaïdjan. Offensive azerbaïdjanaise de sept. 2023, exode de la population arménienne."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [46.4, 39.0],
+            [46.4, 40.4],
+            [47.3, 40.4],
+            [47.3, 39.0],
+            [46.4, 39.0]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ossetie-sud",
+        "name": "Ossétie du Sud",
+        "level": "conflict",
+        "tooltip": "Région sécessionniste de Géorgie, occupée par la Russie depuis 2008."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [43.4, 42.0],
+            [43.4, 42.6],
+            [44.5, 42.6],
+            [44.5, 42.0],
+            [43.4, 42.0]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "abkhazie",
+        "name": "Abkhazie",
+        "level": "conflict",
+        "tooltip": "Région sécessionniste de Géorgie, occupée par la Russie depuis 2008."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [40.0, 42.4],
+            [40.0, 43.6],
+            [42.0, 43.6],
+            [42.5, 43.0],
+            [41.8, 42.4],
+            [40.0, 42.4]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "frontiere-turquie-armenie",
+        "name": "Frontière Turquie ↔ Arménie",
+        "level": "border",
+        "tooltip": "Frontière fermée depuis 1993. Passage par la Géorgie obligatoire."
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [43.44, 41.1],
+          [43.72, 40.64],
+          [43.97, 40.02],
+          [44.03, 39.72],
+          [44.30, 39.38]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "frontiere-armenie-azerbaidjan",
+        "name": "Frontière Arménie ↔ Azerbaïdjan",
+        "level": "border",
+        "tooltip": "Frontière fermée. Conflit du Haut-Karabakh."
+      },
+      "geometry": {
+        "type": "MultiLineString",
+        "coordinates": [
+          [
+            [46.55, 41.2],
+            [46.2, 40.9],
+            [45.98, 40.7],
+            [45.6, 40.3],
+            [45.4, 39.95],
+            [45.6, 39.55],
+            [46.0, 39.2],
+            [46.4, 38.85]
+          ],
+          [
+            [46.55, 40.4],
+            [47.0, 40.2],
+            [47.3, 39.9],
+            [47.4, 39.4],
+            [47.3, 39.0],
+            [46.8, 38.9],
+            [46.55, 39.0]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "iran",
+        "name": "Iran",
+        "level": "deconseille",
+        "tooltip": "Formellement déconseillé par le MEAE. Frontières terrestres non praticables pour le voyage."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [44.0, 39.4],
+            [44.8, 39.5],
+            [45.5, 38.9],
+            [46.2, 38.8],
+            [47.5, 38.2],
+            [48.6, 38.4],
+            [49.0, 37.6],
+            [50.4, 37.0],
+            [52.0, 36.9],
+            [53.9, 37.1],
+            [55.4, 37.3],
+            [57.3, 37.4],
+            [59.3, 37.4],
+            [60.5, 36.6],
+            [61.2, 35.6],
+            [61.4, 34.0],
+            [61.0, 32.5],
+            [60.8, 31.5],
+            [61.8, 30.9],
+            [61.7, 29.4],
+            [60.9, 28.5],
+            [60.5, 27.4],
+            [59.5, 26.0],
+            [58.5, 25.2],
+            [57.5, 25.4],
+            [56.5, 26.0],
+            [55.5, 26.5],
+            [54.5, 26.6],
+            [53.5, 26.8],
+            [52.0, 27.5],
+            [51.0, 27.8],
+            [50.5, 28.5],
+            [50.0, 29.5],
+            [49.0, 29.5],
+            [48.5, 30.0],
+            [48.0, 30.5],
+            [47.7, 31.0],
+            [47.0, 32.0],
+            [46.0, 33.0],
+            [45.5, 33.5],
+            [45.4, 34.5],
+            [45.5, 35.5],
+            [46.0, 36.5],
+            [45.0, 37.5],
+            [44.5, 38.5],
+            [44.0, 39.4]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "russie",
+        "name": "Russie",
+        "level": "deconseille",
+        "tooltip": "Formellement déconseillé par le MEAE depuis 2022. Traversée effectuée (Vladikavkaz → Astrakhan → Atyrau) malgré la recommandation."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [27.5, 57.0],
+            [30.0, 60.0],
+            [33.0, 62.0],
+            [37.0, 65.0],
+            [40.0, 67.0],
+            [45.0, 68.5],
+            [50.0, 69.0],
+            [55.0, 68.5],
+            [60.0, 68.0],
+            [65.0, 67.0],
+            [70.0, 66.5],
+            [75.0, 67.0],
+            [80.0, 68.0],
+            [85.0, 69.0],
+            [90.0, 69.5],
+            [100.0, 70.0],
+            [110.0, 70.5],
+            [120.0, 71.0],
+            [130.0, 70.0],
+            [140.0, 69.0],
+            [150.0, 67.5],
+            [160.0, 65.0],
+            [170.0, 63.0],
+            [178.0, 64.0],
+            [178.0, 60.0],
+            [170.0, 55.0],
+            [160.0, 50.0],
+            [150.0, 48.0],
+            [140.0, 46.0],
+            [135.0, 44.0],
+            [133.0, 43.0],
+            [131.5, 43.5],
+            [130.5, 44.5],
+            [128.0, 49.5],
+            [120.0, 52.0],
+            [115.0, 50.0],
+            [110.0, 50.5],
+            [100.0, 50.5],
+            [90.0, 50.0],
+            [85.0, 50.5],
+            [80.0, 51.0],
+            [75.0, 52.0],
+            [70.0, 52.5],
+            [65.0, 51.0],
+            [60.0, 50.5],
+            [55.0, 50.5],
+            [52.0, 46.0],
+            [50.0, 45.0],
+            [48.5, 44.5],
+            [47.5, 43.8],
+            [46.5, 43.5],
+            [45.0, 43.2],
+            [43.5, 43.5],
+            [42.5, 43.8],
+            [41.0, 43.7],
+            [40.2, 43.8],
+            [39.7, 43.5],
+            [38.5, 44.5],
+            [37.5, 45.5],
+            [36.5, 46.0],
+            [35.0, 46.5],
+            [33.5, 46.5],
+            [32.0, 46.0],
+            [30.5, 46.5],
+            [29.5, 48.0],
+            [28.0, 49.0],
+            [26.5, 50.0],
+            [25.0, 52.0],
+            [24.0, 54.0],
+            [27.5, 57.0]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "azerbaidjan",
+        "name": "Azerbaïdjan",
+        "level": "deconseille",
+        "tooltip": "Inaccessible depuis l'Arménie. Relations diplomatiques rompues."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [45.0, 39.0],
+            [45.6, 39.55],
+            [45.4, 39.95],
+            [45.6, 40.3],
+            [46.0, 40.7],
+            [46.2, 40.9],
+            [46.55, 41.2],
+            [47.0, 41.8],
+            [48.0, 41.5],
+            [49.0, 41.2],
+            [49.8, 40.6],
+            [50.2, 40.0],
+            [50.3, 39.4],
+            [50.0, 38.8],
+            [49.5, 38.6],
+            [49.0, 38.8],
+            [48.6, 38.4],
+            [47.5, 38.2],
+            [46.2, 38.8],
+            [45.5, 38.9],
+            [45.0, 39.0]
+          ]
+        ]
+      }
+    }
+  ]
+}
