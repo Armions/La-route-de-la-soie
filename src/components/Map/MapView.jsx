@@ -15,6 +15,7 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
   const segmentZonesRef = useRef([]) // zone per route segment index
   const sortedLocationsRef = useRef(null) // GPS points sorted by time
   const hoverMarkerRef = useRef(null) // Mapbox marker for timeline hover
+  const coordsRef = useRef(null)
   const onStepClickRef = useRef(onStepClick)
   const onMapMoveRef = useRef(onMapMove)
   onStepClickRef.current = onStepClick
@@ -238,36 +239,33 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
       // ============================================================
       // B2. CONTOUR LINES — mapbox-terrain-v2 vector source
       // ============================================================
+      // NOTE: contour vector tiles only available from zoom ~9+
       map.addSource('mapbox-terrain-v2', {
         type: 'vector',
         url: 'mapbox://mapbox.mapbox-terrain-v2',
       })
 
-      // Contour lines — thin gray, hidden by default
-      // index field: 1 = minor contour, 5 = medium (500m intervals), 10 = major (1000m)
+      // Contour lines — visible from zoom 9 (when tile data exists)
       map.addLayer(
         {
           id: 'contour-lines',
           type: 'line',
           source: 'mapbox-terrain-v2',
           'source-layer': 'contour',
-          minzoom: 3,
+          minzoom: 9,
           paint: {
-            'line-color': '#666666',
+            'line-color': '#999999',
             'line-width': [
               'interpolate', ['linear'], ['zoom'],
-              3, ['case', ['>=', ['get', 'index'], 10], 2.0, 0],
-              5, ['case', ['>=', ['get', 'index'], 10], 2.5, 0],
-              7, ['case', ['>=', ['get', 'index'], 10], 2.8, ['>=', ['get', 'index'], 5], 1.0, 0],
-              9, ['case', ['>=', ['get', 'index'], 10], 2.5, ['>=', ['get', 'index'], 5], 1.2, 0.5],
-              13, ['case', ['>=', ['get', 'index'], 10], 2.8, ['>=', ['get', 'index'], 5], 1.5, 0.7],
+              9, ['case', ['>=', ['get', 'index'], 10], 1.8, ['>=', ['get', 'index'], 5], 0.8, 0.3],
+              12, ['case', ['>=', ['get', 'index'], 10], 2.2, ['>=', ['get', 'index'], 5], 1.2, 0.6],
+              14, ['case', ['>=', ['get', 'index'], 10], 2.5, ['>=', ['get', 'index'], 5], 1.5, 0.8],
             ],
             'line-opacity': [
               'interpolate', ['linear'], ['zoom'],
-              3, ['case', ['>=', ['get', 'index'], 10], 0.7, 0],
-              5, ['case', ['>=', ['get', 'index'], 10], 0.85, 0],
-              7, ['case', ['>=', ['get', 'index'], 10], 0.95, ['>=', ['get', 'index'], 5], 0.5, 0],
-              9, ['case', ['>=', ['get', 'index'], 10], 0.95, ['>=', ['get', 'index'], 5], 0.7, 0.35],
+              9, ['case', ['>=', ['get', 'index'], 10], 0.7, ['>=', ['get', 'index'], 5], 0.4, 0],
+              11, ['case', ['>=', ['get', 'index'], 10], 0.8, ['>=', ['get', 'index'], 5], 0.6, 0.3],
+              14, ['case', ['>=', ['get', 'index'], 10], 0.9, ['>=', ['get', 'index'], 5], 0.7, 0.4],
             ],
           },
           layout: {
@@ -277,13 +275,13 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
         firstSymbolId
       )
 
-      // Altitude labels — on major contours (index >= 5), hidden by default
+      // Altitude labels — on major contours (index >= 5), from zoom 10
       map.addLayer({
         id: 'contour-labels',
         type: 'symbol',
         source: 'mapbox-terrain-v2',
         'source-layer': 'contour',
-        minzoom: 7,
+        minzoom: 10,
         filter: ['>=', ['get', 'index'], 5],
         layout: {
           'symbol-placement': 'line',
@@ -298,6 +296,49 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
           'text-color': '#888888',
           'text-halo-color': '#e8e8e8',
           'text-halo-width': 1,
+        },
+      })
+
+      // Mountain chain labels — visible at low zoom (3-9) when topo is enabled
+      const mountainChains = {
+        type: 'FeatureCollection',
+        features: [
+          { type: 'Feature', properties: { name: 'Alpes' }, geometry: { type: 'Point', coordinates: [10.0, 46.5] } },
+          { type: 'Feature', properties: { name: 'Dinarides' }, geometry: { type: 'Point', coordinates: [18.5, 43.5] } },
+          { type: 'Feature', properties: { name: 'Caucase' }, geometry: { type: 'Point', coordinates: [43.5, 42.3] } },
+          { type: 'Feature', properties: { name: 'Zagros' }, geometry: { type: 'Point', coordinates: [49.0, 33.5] } },
+          { type: 'Feature', properties: { name: 'Elbrouz' }, geometry: { type: 'Point', coordinates: [50.5, 36.2] } },
+          { type: 'Feature', properties: { name: 'Kopet-Dag' }, geometry: { type: 'Point', coordinates: [57.5, 37.8] } },
+          { type: 'Feature', properties: { name: 'Hindu Kush' }, geometry: { type: 'Point', coordinates: [70.5, 36.2] } },
+          { type: 'Feature', properties: { name: 'Pamir' }, geometry: { type: 'Point', coordinates: [73.0, 38.8] } },
+          { type: 'Feature', properties: { name: 'Tian Shan' }, geometry: { type: 'Point', coordinates: [78.0, 42.0] } },
+          { type: 'Feature', properties: { name: 'Kunlun' }, geometry: { type: 'Point', coordinates: [82.0, 36.0] } },
+          { type: 'Feature', properties: { name: 'Altaï' }, geometry: { type: 'Point', coordinates: [88.0, 48.5] } },
+          { type: 'Feature', properties: { name: 'Himalaya' }, geometry: { type: 'Point', coordinates: [85.0, 28.5] } },
+          { type: 'Feature', properties: { name: 'Oural' }, geometry: { type: 'Point', coordinates: [59.0, 55.0] } },
+          { type: 'Feature', properties: { name: 'Taklamakan' }, geometry: { type: 'Point', coordinates: [83.5, 39.0] } },
+          { type: 'Feature', properties: { name: 'Gobi' }, geometry: { type: 'Point', coordinates: [104.0, 43.0] } },
+        ],
+      }
+      map.addSource('mountain-chains', { type: 'geojson', data: mountainChains })
+      map.addLayer({
+        id: 'mountain-labels',
+        type: 'symbol',
+        source: 'mountain-chains',
+        maxzoom: 9,
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-font': ['DIN Pro Italic', 'Arial Unicode MS Regular'],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 3, 10, 7, 13],
+          'text-letter-spacing': 0.2,
+          'text-allow-overlap': false,
+          'visibility': 'none',
+        },
+        paint: {
+          'text-color': '#777777',
+          'text-halo-color': '#e8e8e8',
+          'text-halo-width': 1.5,
+          'text-opacity': ['interpolate', ['linear'], ['zoom'], 3, 0.7, 8, 0.4],
         },
       })
 
@@ -403,6 +444,11 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
             zone: step.zone,
             color: zones[step.zone]?.color || fallbackColor,
             is_releve: step.is_releve,
+            city: step.location?.city || '',
+            country: step.location?.country || '',
+            date: step.date_start || '',
+            temp: step.weather?.temp != null ? step.weather.temp : '',
+            condition: step.weather?.condition || '',
           },
         })),
       }
@@ -1044,9 +1090,23 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
           map.getCanvas().style.cursor = 'pointer'
           const props = e.features[0].properties
           const coords = e.features[0].geometry.coordinates.slice()
+          // Build rich tooltip: name, ville/pays, date, température
+          const lines = [`<strong style="font-size:13px">${props.name}</strong>`]
+          const loc = [props.city, props.country].filter(Boolean).join(', ')
+          if (loc) lines.push(`<span style="font-size:11px;color:#777">${loc}</span>`)
+          if (props.date) {
+            const d = new Date(props.date)
+            const dateFr = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+            lines.push(`<span style="font-size:11px;color:#888">${dateFr}</span>`)
+          }
+          if (props.temp !== '' && props.temp !== null) {
+            const condIcons = { sunny: '☀️', cloudy: '⛅', overcast: '☁️', rain: '🌧', snow: '❄️' }
+            const icon = condIcons[props.condition] || ''
+            lines.push(`<span style="font-size:11px;color:#888">${icon} ${props.temp}°C</span>`)
+          }
           popup
             .setLngLat(coords)
-            .setHTML(`<span style="font-size:13px;font-weight:500">${props.name}</span>`)
+            .setHTML(`<div style="line-height:1.5;display:flex;flex-direction:column">${lines.join('')}</div>`)
             .addTo(map)
         })
         map.on('mouseleave', layerId, () => {
@@ -1071,6 +1131,7 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
       })
 
       // Railway layers — use explicit mapbox-streets source for reliable rail data
+      // Rail data available from zoom ~5 in streets-v8 tiles
       if (!map.getSource('mapbox-streets-rail')) {
         map.addSource('mapbox-streets-rail', {
           type: 'vector',
@@ -1078,24 +1139,35 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
         })
       }
 
+      // Major rail lines only at low zoom, all rail at higher zoom
       map.addLayer(
         {
           id: 'custom-rail-lines',
           type: 'line',
           source: 'mapbox-streets-rail',
           'source-layer': 'road',
-          minzoom: 3,
-          filter: ['in', ['get', 'class'], ['literal', ['major_rail', 'minor_rail', 'service_rail']]],
+          minzoom: 5,
+          filter: [
+            'step', ['zoom'],
+            ['==', ['get', 'class'], 'major_rail'],
+            8, ['in', ['get', 'class'], ['literal', ['major_rail', 'minor_rail']]],
+            10, ['in', ['get', 'class'], ['literal', ['major_rail', 'minor_rail', 'service_rail']]],
+          ],
           paint: {
-            'line-color': '#888888',
+            'line-color': '#777777',
             'line-width': [
               'interpolate', ['linear'], ['zoom'],
-              3, 0.4,
-              6, 0.8,
-              10, 1.2,
-              14, 1.8,
+              5, 0.8,
+              7, 1.2,
+              10, 1.5,
+              14, 2.0,
             ],
-            'line-opacity': 0.7,
+            'line-opacity': [
+              'interpolate', ['linear'], ['zoom'],
+              5, 0.5,
+              7, 0.65,
+              10, 0.75,
+            ],
             'line-dasharray': [4, 3],
           },
           layout: { 'visibility': 'none' },
@@ -1103,6 +1175,22 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
         firstSymbolId
       )
       map._railLayerIds = ['custom-rail-lines']
+
+      // Scale control — bottom-left
+      map.addControl(new mapboxgl.ScaleControl({ maxWidth: 120, unit: 'metric' }), 'bottom-left')
+
+      // GPS cursor coordinates — update DOM directly for performance
+      map.on('mousemove', (e) => {
+        if (coordsRef.current) {
+          const { lng, lat } = e.lngLat
+          const latDir = lat >= 0 ? 'N' : 'S'
+          const lngDir = lng >= 0 ? 'E' : 'W'
+          coordsRef.current.textContent = `${Math.abs(lat).toFixed(4)}° ${latDir}, ${Math.abs(lng).toFixed(4)}° ${lngDir}`
+        }
+      })
+      map.on('mouseout', () => {
+        if (coordsRef.current) coordsRef.current.textContent = ''
+      })
 
       // Apply initial theme
       readyRef.current = true
@@ -1113,9 +1201,29 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
   }, [steps, meta, locations]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div
-      ref={containerRef}
-      style={{ width: '100%', height: '100%' }}
-    />
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      <div
+        ref={containerRef}
+        style={{ position: 'absolute', inset: 0 }}
+      />
+      {/* GPS coordinates overlay — bottom-left, above scale */}
+      <div
+        ref={coordsRef}
+        style={{
+          position: 'absolute',
+          bottom: 28,
+          left: 8,
+          fontSize: 10,
+          fontFamily: 'monospace',
+          color: darkMode ? '#888' : '#666',
+          background: darkMode ? 'rgba(26,26,30,0.7)' : 'rgba(255,255,255,0.7)',
+          padding: '2px 6px',
+          borderRadius: 3,
+          pointerEvents: 'none',
+          zIndex: 5,
+          whiteSpace: 'nowrap',
+        }}
+      />
+    </div>
   )
 })

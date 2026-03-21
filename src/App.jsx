@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import MapView from './components/Map/MapView'
+import MapLegend from './components/Map/MapLegend'
 import DarkModeToggle from './components/Map/DarkModeToggle'
 import Sidebar from './components/Sidebar/Sidebar'
 import StopHub from './components/StopHub/StopHub'
@@ -160,6 +161,7 @@ function AppContent({ darkMode, setDarkMode }) {
           darkMode={darkMode}
           onToggle={() => setSidebarCollapsed((c) => !c)}
         />
+        <MapLegend mapRef={mapViewRef} darkMode={darkMode} />
         <Timeline
           steps={steps}
           meta={meta}

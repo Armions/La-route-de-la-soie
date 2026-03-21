@@ -265,8 +265,16 @@ export function applyTheme(map, mode) {
 
   // Railway layer theme
   try {
-    const railColor = mode === 'dark' ? '#555555' : '#888888'
+    const railColor = mode === 'dark' ? '#555555' : '#777777'
     map.setPaintProperty('custom-rail-lines', 'line-color', railColor)
+  } catch (_) {}
+
+  // Mountain labels theme
+  try {
+    const mtnColor = mode === 'dark' ? '#888888' : '#777777'
+    const mtnHalo = mode === 'dark' ? '#1e1e22' : '#e8e8e8'
+    map.setPaintProperty('mountain-labels', 'text-color', mtnColor)
+    map.setPaintProperty('mountain-labels', 'text-halo-color', mtnHalo)
   } catch (_) {}
 
   // Silk road city labels + dots theme

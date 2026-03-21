@@ -164,7 +164,7 @@ const SECTIONS = [
         label: 'Courbes topographiques',
         defaultOn: false,
         implemented: true,
-        getMapLayers: () => ['contour-lines', 'contour-labels'],
+        getMapLayers: () => ['contour-lines', 'contour-labels', 'mountain-labels'],
       },
     ],
   },
