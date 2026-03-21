@@ -117,7 +117,7 @@ export function applyTheme(map, mode) {
   for (const layer of style.layers) {
     const { id, type } = layer
     if (id.startsWith('route-') || id.startsWith('steps-') || id === 'hillshade-layer') continue
-    if (id.startsWith('country-fills-')) continue
+    if (id.startsWith('country-fills-') || id.startsWith('geopolitics-')) continue
 
     try {
       if (LAYERS_TO_HIDE.includes(id)) {
@@ -261,5 +261,19 @@ export function applyTheme(map, mode) {
   try {
     const culturalHalo = mode === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.85)'
     map.setPaintProperty('cultural-regions-label', 'text-halo-color', culturalHalo)
+  } catch (_) {}
+
+  // Railway layer theme
+  try {
+    const railColor = mode === 'dark' ? '#555555' : '#888888'
+    map.setPaintProperty('custom-rail-lines', 'line-color', railColor)
+  } catch (_) {}
+
+  // Silk road city labels + dots theme
+  try {
+    const silkHalo = mode === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.85)'
+    const silkStroke = mode === 'dark' ? '#1e1e22' : '#ffffff'
+    map.setPaintProperty('silk-road-city-labels', 'text-halo-color', silkHalo)
+    map.setPaintProperty('silk-road-cities', 'circle-stroke-color', silkStroke)
   } catch (_) {}
 }

@@ -43,6 +43,24 @@ function countryFr(name) {
   return COUNTRY_FR[name] || name
 }
 
+// Cultural region names for display
+const CULTURAL_REGION_NAMES = {
+  'IT,GR,TR': 'Bassin méditerranéen',
+  'GE,AM': 'Caucase',
+  'KZ,UZ,KG': 'Asie centrale',
+  'CN,HK': 'Monde chinois',
+  'JP': 'Archipel japonais',
+}
+
+function getCulturalRegionName(filterCountries) {
+  if (!filterCountries) return null
+  const key = [...filterCountries].sort().join(',')
+  for (const [codes, name] of Object.entries(CULTURAL_REGION_NAMES)) {
+    if ([...codes.split(',')].sort().join(',') === key) return name
+  }
+  return null
+}
+
 export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, activeStepId, onHoverZone, onHoverFrac, filterCountries }) {
   const barRef = useRef(null)
   const [hoverInfo, setHoverInfo] = useState(null)
@@ -195,6 +213,8 @@ export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, a
     if (onStepClick) onStepClick(hoverInfo.step)
   }, [hoverInfo, onStepClick])
 
+  const culturalRegionName = getCulturalRegionName(filterCountries)
+
   if (!steps || steps.length === 0 || !dateStart) return null
 
   // Theme
@@ -293,6 +313,15 @@ export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, a
           <span style={{ fontSize: 10, color: textColor, fontWeight: 500 }}>
             {formatDateLong(dateStart)}
           </span>
+          {culturalRegionName && !hoverInfo && (
+            <span style={{
+              fontSize: 10, color: darkMode ? '#aaa' : '#666', fontWeight: 600,
+              position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+              fontStyle: 'italic',
+            }}>
+              {culturalRegionName}
+            </span>
+          )}
           {hoverInfo && (
             <span style={{
               fontSize: 10, color: hoverInfo.segment.color, fontWeight: 600,

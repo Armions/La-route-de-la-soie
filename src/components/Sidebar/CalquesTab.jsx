@@ -22,6 +22,20 @@ const CLIMATE_ZONES = [
 
 const CLIMATE_MAP_LAYERS = ['climate-zones-fill', 'climate-zones-border', 'climate-zones-label']
 
+const SILK_ROADS_MAP_LAYERS = [
+  'silk-road-terrestre-nord', 'silk-road-terrestre-sud', 'silk-road-maritime',
+  'silk-road-steppes', 'silk-road-inde',
+  'silk-road-cities', 'silk-road-city-labels',
+]
+
+const SILK_ROADS_ROUTES = [
+  { id: 'terrestre-nord', name: 'Route centrale des oasis', color: '#8B6914', dash: '8 4' },
+  { id: 'terrestre-sud', name: 'Route sud du Tarim', color: '#A0522D', dash: '4 3' },
+  { id: 'steppes', name: 'Route des Steppes (Nord)', color: '#6B4226', dash: '3 3' },
+  { id: 'inde', name: 'Route vers l\'Inde', color: '#8B4513', dash: '5 3' },
+  { id: 'maritime', name: 'Route maritime', color: '#4A708B', dash: '6 4' },
+]
+
 const CULTURAL_REGIONS = [
   { id: 'mediterranee', name: 'Bassin méditerranéen', desc: 'Italie, Grèce, côte turque ouest', color: '#E8A87C' },
   { id: 'caucase', name: 'Caucase', desc: 'Géorgie, Arménie, Turquie est', color: '#85C1A3' },
@@ -49,8 +63,8 @@ const CULTURAL_REGION_COUNTRIES = {
 
 const GEOPOLITICS_MAP_LAYERS = [
   'geopolitics-conflict-fill', 'geopolitics-conflict-border',
-  'geopolitics-deconseille-fill',
-  'geopolitics-border-line', 'geopolitics-label',
+  'geopolitics-deconseille-fill', 'geopolitics-deconseille-border',
+  'geopolitics-border-line',
 ]
 
 const SECTIONS = [
@@ -174,6 +188,14 @@ const SECTIONS = [
         hasLegend: 'cultural',
         getMapLayers: () => CULTURAL_MAP_LAYERS,
       },
+      {
+        id: 'silk-roads',
+        label: 'Routes de la Soie historiques',
+        defaultOn: false,
+        implemented: true,
+        hasLegend: 'silk-roads',
+        getMapLayers: () => SILK_ROADS_MAP_LAYERS,
+      },
     ],
   },
   {
@@ -193,22 +215,7 @@ const SECTIONS = [
         label: 'Réseau ferré',
         defaultOn: false,
         implemented: true,
-        applyToggle: (map, isOn) => {
-          const railLayers = map._railLayerIds || ['road-rail', 'bridge-rail']
-          railLayers.forEach((lid) => {
-            try {
-              if (isOn) {
-                map.setLayoutProperty(lid, 'visibility', 'visible')
-                map.setPaintProperty(lid, 'line-color', '#888888')
-                map.setPaintProperty(lid, 'line-opacity', 0.7)
-                map.setPaintProperty(lid, 'line-width', 1)
-                try { map.setPaintProperty(lid, 'line-dasharray', [4, 3]) } catch (_) {}
-              } else {
-                map.setLayoutProperty(lid, 'visibility', 'none')
-              }
-            } catch (_) {}
-          })
-        },
+        getMapLayers: () => ['custom-rail-lines'],
       },
     ],
   },
@@ -236,9 +243,11 @@ export default function CalquesTab({ darkMode, mapRef, onCulturalFilter }) {
 
   const text = darkMode ? '#d0d0d0' : '#333333'
   const textMuted = darkMode ? '#666' : '#999'
-  const divider = darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'
-  const trackOff = darkMode ? '#444' : '#ccc'
-  const trackOn = darkMode ? '#7c8cf5' : '#4f6cf5'
+  const divider = darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
+  const trackOff = darkMode ? '#3a3a42' : '#ccc'
+  const trackOn = darkMode ? '#5a6ae0' : '#4f6cf5'
+  const thumbOff = darkMode ? '#666' : '#ffffff'
+  const thumbOn = darkMode ? '#d0d0d0' : '#ffffff'
   const legendBg = darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'
 
   function handleToggle(layerDef) {
@@ -352,15 +361,15 @@ export default function CalquesTab({ darkMode, mapRef, onCulturalFilter }) {
   }
 
   return (
-    <div className="px-4 py-4 flex flex-col gap-4 h-full overflow-y-auto">
+    <div className="px-4 py-5 flex flex-col gap-5 h-full overflow-y-auto">
       {SECTIONS.map((section, si) => (
         <div key={section.id}>
-          {si > 0 && <div style={{ borderTop: `1px solid ${divider}`, marginBottom: 12 }} />}
+          {si > 0 && <div style={{ borderTop: `1px solid ${divider}`, marginBottom: 16 }} />}
 
           {/* Section header */}
           <button
             onClick={() => toggleSection(section.id)}
-            className="flex items-center justify-between w-full py-1.5 px-1 cursor-pointer select-none"
+            className="flex items-center justify-between w-full py-2 px-1 cursor-pointer select-none"
           >
             <span
               className="text-[10px] font-semibold uppercase tracking-wider"
@@ -381,13 +390,15 @@ export default function CalquesTab({ darkMode, mapRef, onCulturalFilter }) {
 
           {/* Section content */}
           {!collapsed[section.id] && (
-            <div className="flex flex-col gap-1 mt-2">
-              {section.layers.map((layerDef) => (
+            <div className="flex flex-col gap-0 mt-3">
+              {section.layers.map((layerDef, li) => (
                 <div key={layerDef.id}>
+                  {li > 0 && <div style={{ borderTop: `1px solid ${divider}`, marginLeft: 8, marginRight: 8 }} />}
                   {/* Toggle row */}
                   <div
-                    className="flex items-center justify-between py-2.5 px-2 select-none"
+                    className="flex items-center justify-between select-none"
                     style={{
+                      padding: '12px 8px',
                       cursor: layerDef.implemented ? 'pointer' : 'default',
                       opacity: layerDef.implemented ? 1 : 0.35,
                     }}
@@ -413,7 +424,7 @@ export default function CalquesTab({ darkMode, mapRef, onCulturalFilter }) {
                           style={{
                             width: 14,
                             height: 14,
-                            background: darkMode ? '#bbb' : '#ffffff',
+                            background: toggles[layerDef.id] ? thumbOn : thumbOff,
                             transform: toggles[layerDef.id]
                               ? 'translateX(18px)'
                               : 'translateX(2px)',
@@ -530,6 +541,38 @@ export default function CalquesTab({ darkMode, mapRef, onCulturalFilter }) {
                     </div>
                   )}
 
+                  {/* Silk Roads legend — shown when toggle is ON */}
+                  {layerDef.hasLegend === 'silk-roads' && toggles[layerDef.id] && (
+                    <div
+                      className="mt-1 mb-2 mx-1 rounded-md py-2 px-2"
+                      style={{ background: legendBg }}
+                    >
+                      <div className="flex flex-col gap-1.5">
+                        {SILK_ROADS_ROUTES.map((route) => (
+                          <div key={route.id} className="flex items-center gap-2 px-1">
+                            <svg width="20" height="4" className="shrink-0">
+                              <line
+                                x1="0" y1="2" x2="20" y2="2"
+                                stroke={route.color}
+                                strokeWidth="2"
+                                strokeDasharray={route.dash}
+                              />
+                            </svg>
+                            <span className="text-[10px]" style={{ color: text }}>
+                              {route.name}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div
+                        className="text-[9px] mt-2 pt-1.5 italic leading-tight"
+                        style={{ color: textMuted, borderTop: `1px solid ${divider}` }}
+                      >
+                        Sources : Williams, T.D. (2014), The Silk Roads, ICOMOS ; Christian, D. (2000), Silk Roads or Steppe Roads?, Journal of World History ; UNESCO (2014), patrimoine mondial n°1442
+                      </div>
+                    </div>
+                  )}
+
                   {/* Geopolitics legend — shown when toggle is ON */}
                   {layerDef.hasLegend === 'geopolitics' && toggles[layerDef.id] && (
                     <div
@@ -594,7 +637,7 @@ export default function CalquesTab({ darkMode, mapRef, onCulturalFilter }) {
                         className="text-[9px] mt-2 pt-1.5 italic leading-tight"
                         style={{ color: textMuted, borderTop: `1px solid ${divider}` }}
                       >
-                        Source : Fil d'Ariane / MEAE France
+                        Contraintes géopolitiques (mai-déc 2025). Source : MEAE France.
                       </div>
                     </div>
                   )}

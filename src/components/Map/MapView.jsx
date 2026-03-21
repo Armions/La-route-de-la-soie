@@ -251,21 +251,23 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
           type: 'line',
           source: 'mapbox-terrain-v2',
           'source-layer': 'contour',
-          minzoom: 4,
+          minzoom: 3,
           paint: {
             'line-color': '#666666',
             'line-width': [
               'interpolate', ['linear'], ['zoom'],
-              4, ['case', ['>=', ['get', 'index'], 10], 1.8, 0],
-              7, ['case', ['>=', ['get', 'index'], 10], 2.0, ['>=', ['get', 'index'], 5], 0.7, 0],
-              9, ['case', ['>=', ['get', 'index'], 10], 2.2, ['>=', ['get', 'index'], 5], 1.0, 0.5],
-              13, ['case', ['>=', ['get', 'index'], 10], 2.5, ['>=', ['get', 'index'], 5], 1.4, 0.7],
+              3, ['case', ['>=', ['get', 'index'], 10], 2.0, 0],
+              5, ['case', ['>=', ['get', 'index'], 10], 2.5, 0],
+              7, ['case', ['>=', ['get', 'index'], 10], 2.8, ['>=', ['get', 'index'], 5], 1.0, 0],
+              9, ['case', ['>=', ['get', 'index'], 10], 2.5, ['>=', ['get', 'index'], 5], 1.2, 0.5],
+              13, ['case', ['>=', ['get', 'index'], 10], 2.8, ['>=', ['get', 'index'], 5], 1.5, 0.7],
             ],
             'line-opacity': [
               'interpolate', ['linear'], ['zoom'],
-              4, ['case', ['>=', ['get', 'index'], 10], 0.85, 0],
-              7, ['case', ['>=', ['get', 'index'], 10], 0.9, ['>=', ['get', 'index'], 5], 0.5, 0],
-              9, ['case', ['>=', ['get', 'index'], 10], 0.9, ['>=', ['get', 'index'], 5], 0.65, 0.35],
+              3, ['case', ['>=', ['get', 'index'], 10], 0.7, 0],
+              5, ['case', ['>=', ['get', 'index'], 10], 0.85, 0],
+              7, ['case', ['>=', ['get', 'index'], 10], 0.95, ['>=', ['get', 'index'], 5], 0.5, 0],
+              9, ['case', ['>=', ['get', 'index'], 10], 0.95, ['>=', ['get', 'index'], 5], 0.7, 0.35],
             ],
           },
           layout: {
@@ -665,10 +667,197 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
       })
 
       // ============================================================
+      // I2. SILK ROADS — routes historiques de la soie
+      // ============================================================
+      fetch('/data/layers/silk_roads.json')
+        .then((r) => r.json())
+        .then((silkData) => {
+          if (!map.getSource('silk-roads')) {
+            map.addSource('silk-roads', { type: 'geojson', data: silkData })
+          }
+
+          // Route terrestre du Nord — or ancien, tireté long
+          map.addLayer(
+            {
+              id: 'silk-road-terrestre-nord',
+              type: 'line',
+              source: 'silk-roads',
+              filter: ['==', ['get', 'id'], 'terrestre-nord'],
+              paint: {
+                'line-color': '#8B6914',
+                'line-width': 2,
+                'line-opacity': 0.8,
+                'line-dasharray': [8, 4],
+              },
+              layout: { 'visibility': 'none', 'line-join': 'round', 'line-cap': 'round' },
+            },
+            firstSymbolId
+          )
+
+          // Route terrestre du Sud — brun, tireté court
+          map.addLayer(
+            {
+              id: 'silk-road-terrestre-sud',
+              type: 'line',
+              source: 'silk-roads',
+              filter: ['==', ['get', 'id'], 'terrestre-sud'],
+              paint: {
+                'line-color': '#A0522D',
+                'line-width': 2,
+                'line-opacity': 0.8,
+                'line-dasharray': [4, 3],
+              },
+              layout: { 'visibility': 'none', 'line-join': 'round', 'line-cap': 'round' },
+            },
+            firstSymbolId
+          )
+
+          // Route maritime — bleu-gris, tireté
+          map.addLayer(
+            {
+              id: 'silk-road-maritime',
+              type: 'line',
+              source: 'silk-roads',
+              filter: ['==', ['get', 'id'], 'maritime'],
+              paint: {
+                'line-color': '#4A708B',
+                'line-width': 2,
+                'line-opacity': 0.8,
+                'line-dasharray': [6, 4],
+              },
+              layout: { 'visibility': 'none', 'line-join': 'round', 'line-cap': 'round' },
+            },
+            firstSymbolId
+          )
+
+          // Route des Steppes — brun foncé, tireté court
+          map.addLayer(
+            {
+              id: 'silk-road-steppes',
+              type: 'line',
+              source: 'silk-roads',
+              filter: ['==', ['get', 'id'], 'steppes'],
+              paint: {
+                'line-color': '#6B4226',
+                'line-width': 2,
+                'line-opacity': 0.8,
+                'line-dasharray': [3, 3],
+              },
+              layout: { 'visibility': 'none', 'line-join': 'round', 'line-cap': 'round' },
+            },
+            firstSymbolId
+          )
+
+          // Route vers l'Inde — brun-rouge, tireté
+          map.addLayer(
+            {
+              id: 'silk-road-inde',
+              type: 'line',
+              source: 'silk-roads',
+              filter: ['==', ['get', 'id'], 'inde'],
+              paint: {
+                'line-color': '#8B4513',
+                'line-width': 2,
+                'line-opacity': 0.8,
+                'line-dasharray': [5, 3],
+              },
+              layout: { 'visibility': 'none', 'line-join': 'round', 'line-cap': 'round' },
+            },
+            firstSymbolId
+          )
+
+          // Villes-étapes historiques — petits points colorés par route
+          map.addLayer({
+            id: 'silk-road-cities',
+            type: 'circle',
+            source: 'silk-roads',
+            filter: ['==', ['get', 'type'], 'city'],
+            paint: {
+              'circle-radius': 3.5,
+              'circle-color': ['get', 'color'],
+              'circle-stroke-color': '#ffffff',
+              'circle-stroke-width': 1,
+              'circle-opacity': 0.9,
+            },
+            layout: { 'visibility': 'none' },
+          })
+
+          // Labels pour les villes principales (zoom > 5)
+          map.addLayer({
+            id: 'silk-road-city-labels',
+            type: 'symbol',
+            source: 'silk-roads',
+            filter: ['==', ['get', 'type'], 'city'],
+            minzoom: 5,
+            layout: {
+              'text-field': [
+                'case',
+                ['!=', ['get', 'name_ancien'], null],
+                ['concat', ['get', 'name'], ' (', ['get', 'name_ancien'], ')'],
+                ['get', 'name'],
+              ],
+              'text-font': ['DIN Pro Italic', 'Arial Unicode MS Regular'],
+              'text-size': 10,
+              'text-offset': [0, 1.2],
+              'text-anchor': 'top',
+              'text-allow-overlap': false,
+              'visibility': 'none',
+            },
+            paint: {
+              'text-color': ['get', 'color'],
+              'text-halo-color': 'rgba(255,255,255,0.85)',
+              'text-halo-width': 1.2,
+            },
+          })
+        })
+        .catch(() => {})
+
+      // Tooltip — silk road cities
+      const silkPopup = new mapboxgl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        offset: 8,
+        maxWidth: '220px',
+        className: 'silk-tooltip',
+      })
+      map.on('mouseenter', 'silk-road-cities', (e) => {
+        map.getCanvas().style.cursor = 'pointer'
+        const props = e.features[0].properties
+        const ancien = props.name_ancien
+        const label = ancien && ancien !== 'null'
+          ? `<strong>${props.name}</strong> (${ancien})`
+          : `<strong>${props.name}</strong>`
+        silkPopup
+          .setLngLat(e.features[0].geometry.coordinates.slice())
+          .setHTML(`<div style="font-size:12px;line-height:1.3;color:#555">${label}</div>`)
+          .addTo(map)
+      })
+      map.on('mouseleave', 'silk-road-cities', () => {
+        map.getCanvas().style.cursor = ''
+        silkPopup.remove()
+      })
+
+      // ============================================================
       // J. GEOPOLITICS — conflits, frontières fermées, pays déconseillés
       // ============================================================
+      // DIAGNOSTIC — log available Mapbox sources & boundary layers
+      console.group('🗺️ Geopolitics — diagnostic Mapbox')
+      const allLayers = map.getStyle().layers
+      const boundaryLayers = allLayers.filter((l) =>
+        /(admin|boundary|border|country|disputed)/i.test(l.id)
+      )
+      console.log('Boundary-related layers:', boundaryLayers.map((l) => ({
+        id: l.id, type: l.type, source: l.source, sourceLayer: l['source-layer'],
+      })))
+      // Query country-boundaries source properties
+      console.log('country-boundaries source:', map.getSource('country-boundaries'))
+      // Check if enterprise boundaries are available
+      const sources = map.getStyle().sources
+      console.log('Available sources:', Object.keys(sources))
+      console.groupEnd()
 
-      // Niveau 3 — Pays déconseillés — real country boundaries
+      // ---- NIVEAU 3 — Pays déconseillés (rouge clair) ----
+      // Uses Mapbox country-boundaries-v1 vector tiles = REAL country polygons
       map.addLayer(
         {
           id: 'geopolitics-deconseille-fill',
@@ -692,20 +881,40 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
         firstSymbolId
       )
 
-      // Conflict zones + border lines from GeoJSON (sub-national areas)
+      // Outline for déconseillé countries
+      map.addLayer(
+        {
+          id: 'geopolitics-deconseille-border',
+          type: 'line',
+          source: 'country-boundaries',
+          'source-layer': 'country_boundaries',
+          filter: [
+            'all',
+            ['in', ['get', 'iso_3166_1'], ['literal', ['IR', 'RU', 'AZ']]],
+            ['any',
+              ['==', 'all', ['get', 'worldview']],
+              ['in', 'US', ['get', 'worldview']],
+            ],
+          ],
+          paint: {
+            'line-color': '#E74C3C',
+            'line-width': 1,
+            'line-opacity': 0.4,
+          },
+          layout: { 'visibility': 'none' },
+        },
+        firstSymbolId
+      )
+
+      // ---- NIVEAU 1 & 2 — Conflict zones + closed borders from precise GeoJSON ----
       fetch('/data/layers/geopolitics.json')
         .then((r) => r.json())
         .then((geoData) => {
-          // Filter out deconseille features (now using country-boundaries)
-          const conflictBorderData = {
-            ...geoData,
-            features: geoData.features.filter((f) => f.properties.level !== 'deconseille'),
-          }
           if (!map.getSource('geopolitics')) {
-            map.addSource('geopolitics', { type: 'geojson', data: conflictBorderData })
+            map.addSource('geopolitics', { type: 'geojson', data: geoData })
           }
 
-          // Niveau 1 — Conflits actifs / zones occupées (fill, rouge foncé)
+          // Conflict zones — fill (rouge foncé)
           map.addLayer(
             {
               id: 'geopolitics-conflict-fill',
@@ -721,6 +930,7 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
             firstSymbolId
           )
 
+          // Conflict zones — border outline
           map.addLayer(
             {
               id: 'geopolitics-conflict-border',
@@ -737,7 +947,7 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
             firstSymbolId
           )
 
-          // Niveau 2 — Frontières fermées (ligne tiretée rouge)
+          // Closed borders — dashed red lines (2px)
           map.addLayer(
             {
               id: 'geopolitics-border-line',
@@ -746,7 +956,7 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
               filter: ['==', ['get', 'level'], 'border'],
               paint: {
                 'line-color': '#E74C3C',
-                'line-width': 2.5,
+                'line-width': 2,
                 'line-opacity': 0.85,
                 'line-dasharray': [4, 3],
               },
@@ -754,46 +964,26 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
             },
             firstSymbolId
           )
-
-          // Labels pour les zones de conflit et frontières
-          map.addLayer({
-            id: 'geopolitics-label',
-            type: 'symbol',
-            source: 'geopolitics',
-            filter: ['in', ['get', 'level'], ['literal', ['conflict', 'border']]],
-            layout: {
-              'text-field': ['get', 'name'],
-              'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
-              'text-size': 10,
-              'text-allow-overlap': false,
-              'visibility': 'none',
-            },
-            paint: {
-              'text-color': '#C0392B',
-              'text-halo-color': 'rgba(255,255,255,0.9)',
-              'text-halo-width': 1.5,
-            },
-          })
         })
-        .catch(() => {})
+        .catch((err) => console.warn('Geopolitics GeoJSON load error:', err))
 
-      // Tooltip — geopolitics
+      // ---- TOOLTIPS ----
       const geoPopup = new mapboxgl.Popup({
         closeButton: false,
         closeOnClick: false,
         offset: 10,
-        maxWidth: '280px',
+        maxWidth: '300px',
         className: 'geo-tooltip',
       })
 
-      // Tooltip data for deconseille countries (country-boundaries source has no tooltip props)
+      // Tooltip data for déconseillé countries (vector tiles have no tooltip property)
       const DECONSEILLE_INFO = {
-        'IR': { name: 'Iran', tooltip: "Formellement déconseillé par le MEAE. Frontières terrestres non praticables pour le voyage." },
-        'RU': { name: 'Russie', tooltip: "Formellement déconseillé par le MEAE depuis 2022. Traversée effectuée (Vladikavkaz \u2192 Astrakhan \u2192 Atyrau) malgré la recommandation." },
+        'IR': { name: 'Iran', tooltip: "Formellement déconseillé par le MEAE. Frontières terrestres non praticables." },
+        'RU': { name: 'Russie', tooltip: "Formellement déconseillé par le MEAE depuis 2022. Traversée effectuée (Vladikavkaz → Astrakhan)." },
         'AZ': { name: 'Azerbaïdjan', tooltip: "Inaccessible depuis l'Arménie. Relations diplomatiques rompues." },
       }
 
-      // Deconseille layer — uses country-boundaries, look up tooltip by ISO code
+      // Deconseille layer tooltip — country-boundaries source, look up by ISO
       map.on('mouseenter', 'geopolitics-deconseille-fill', (e) => {
         map.getCanvas().style.cursor = 'pointer'
         const iso = e.features[0].properties.iso_3166_1
@@ -816,12 +1006,9 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
         geoPopup.remove()
       })
 
-      // Conflict + border layers — GeoJSON source with tooltip props
-      const geoLayersWithTooltip = [
-        'geopolitics-conflict-fill',
-        'geopolitics-border-line',
-      ]
-      geoLayersWithTooltip.forEach((layerId) => {
+      // Conflict zones + closed borders — GeoJSON source with tooltip in properties
+      const geoTooltipLayers = ['geopolitics-conflict-fill', 'geopolitics-border-line']
+      geoTooltipLayers.forEach((layerId) => {
         map.on('mouseenter', layerId, (e) => {
           map.getCanvas().style.cursor = 'pointer'
           const props = e.features[0].properties
@@ -883,39 +1070,39 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
         }
       })
 
-      // Railway layers — find existing or create custom
-      const railLayerIds = map.getStyle().layers
-        .filter((l) => l.id.toLowerCase().includes('rail'))
-        .map((l) => l.id)
-
-      if (railLayerIds.length > 0) {
-        railLayerIds.forEach((lid) => {
-          try { map.setLayoutProperty(lid, 'visibility', 'none') } catch (_) {}
+      // Railway layers — use explicit mapbox-streets source for reliable rail data
+      if (!map.getSource('mapbox-streets-rail')) {
+        map.addSource('mapbox-streets-rail', {
+          type: 'vector',
+          url: 'mapbox://mapbox.mapbox-streets-v8',
         })
-      } else {
-        // No rail layers in style — create from road source (mapbox-streets-v8)
-        try {
-          map.addLayer(
-            {
-              id: 'custom-rail-lines',
-              type: 'line',
-              source: 'composite',
-              'source-layer': 'road',
-              filter: ['in', ['get', 'class'], ['literal', ['major_rail', 'minor_rail', 'service_rail']]],
-              paint: {
-                'line-color': '#888888',
-                'line-width': 1,
-                'line-opacity': 0.7,
-                'line-dasharray': [4, 3],
-              },
-              layout: { 'visibility': 'none' },
-            },
-            firstSymbolId
-          )
-          railLayerIds.push('custom-rail-lines')
-        } catch (_) {}
       }
-      map._railLayerIds = railLayerIds
+
+      map.addLayer(
+        {
+          id: 'custom-rail-lines',
+          type: 'line',
+          source: 'mapbox-streets-rail',
+          'source-layer': 'road',
+          minzoom: 3,
+          filter: ['in', ['get', 'class'], ['literal', ['major_rail', 'minor_rail', 'service_rail']]],
+          paint: {
+            'line-color': '#888888',
+            'line-width': [
+              'interpolate', ['linear'], ['zoom'],
+              3, 0.4,
+              6, 0.8,
+              10, 1.2,
+              14, 1.8,
+            ],
+            'line-opacity': 0.7,
+            'line-dasharray': [4, 3],
+          },
+          layout: { 'visibility': 'none' },
+        },
+        firstSymbolId
+      )
+      map._railLayerIds = ['custom-rail-lines']
 
       // Apply initial theme
       readyRef.current = true

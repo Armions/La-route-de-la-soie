@@ -1,0 +1,765 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "terrestre-nord",
+        "name": "Route centrale des oasis",
+        "color": "#8B6914",
+        "type": "route"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [108.94, 34.26],
+          [103.83, 36.06],
+          [102.64, 37.93],
+          [100.45, 38.93],
+          [94.66, 40.14],
+          [93.51, 42.83],
+          [89.19, 42.95],
+          [82.96, 41.73],
+          [75.99, 39.47],
+          [69.28, 41.31],
+          [66.96, 39.65],
+          [64.42, 39.77],
+          [62.20, 37.60],
+          [58.80, 36.21],
+          [51.42, 35.69],
+          [48.51, 34.80],
+          [44.37, 33.31],
+          [38.28, 34.56],
+          [36.16, 36.20],
+          [28.98, 41.01]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "terrestre-sud",
+        "name": "Route sud du Tarim",
+        "color": "#A0522D",
+        "type": "route"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [108.94, 34.26],
+          [103.83, 36.06],
+          [94.66, 40.14],
+          [90.25, 40.52],
+          [79.93, 37.11],
+          [77.25, 38.42],
+          [75.99, 39.47],
+          [71.58, 36.72],
+          [66.90, 36.76],
+          [66.90, 36.76],
+          [72.84, 33.74],
+          [71.58, 34.01]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "maritime",
+        "name": "Route maritime",
+        "color": "#4A708B",
+        "type": "route"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [113.26, 23.13],
+          [105.85, 21.03],
+          [101.97, 2.19],
+          [79.86, 6.93],
+          [75.77, 11.25],
+          [45.03, 12.79],
+          [39.17, 21.49],
+          [31.24, 30.04],
+          [29.92, 31.20],
+          [28.98, 41.01],
+          [12.34, 45.44]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-changan",
+        "name": "Xi'an",
+        "name_ancien": "Chang'an",
+        "route": "terrestre-nord",
+        "color": "#8B6914",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [108.94, 34.26] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-lanzhou",
+        "name": "Lanzhou",
+        "name_ancien": null,
+        "route": "terrestre-nord",
+        "color": "#8B6914",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [103.83, 36.06] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-wuwei",
+        "name": "Wuwei",
+        "name_ancien": "Liangzhou",
+        "route": "terrestre-nord",
+        "color": "#8B6914",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [102.64, 37.93] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-zhangye",
+        "name": "Zhangye",
+        "name_ancien": "Ganzhou",
+        "route": "terrestre-nord",
+        "color": "#8B6914",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [100.45, 38.93] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-dunhuang",
+        "name": "Dunhuang",
+        "name_ancien": null,
+        "route": "terrestre-nord",
+        "color": "#8B6914",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [94.66, 40.14] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-hami",
+        "name": "Hami",
+        "name_ancien": "Kumul",
+        "route": "terrestre-nord",
+        "color": "#8B6914",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [93.51, 42.83] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-tourfan",
+        "name": "Tourfan",
+        "name_ancien": "Gaochang",
+        "route": "terrestre-nord",
+        "color": "#8B6914",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [89.19, 42.95] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-koutcha",
+        "name": "Koutcha",
+        "name_ancien": "Kuqa",
+        "route": "terrestre-nord",
+        "color": "#8B6914",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [82.96, 41.73] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-kashgar",
+        "name": "Kashgar",
+        "name_ancien": "Shule",
+        "route": "terrestre-nord",
+        "color": "#8B6914",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [75.99, 39.47] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-tachkent",
+        "name": "Tachkent",
+        "name_ancien": "Chach",
+        "route": "terrestre-nord",
+        "color": "#8B6914",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [69.28, 41.31] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-samarcande",
+        "name": "Samarcande",
+        "name_ancien": "Maracanda",
+        "route": "terrestre-nord",
+        "color": "#8B6914",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [66.96, 39.65] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-boukhara",
+        "name": "Boukhara",
+        "name_ancien": null,
+        "route": "terrestre-nord",
+        "color": "#8B6914",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [64.42, 39.77] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-merv",
+        "name": "Mary",
+        "name_ancien": "Merv",
+        "route": "terrestre-nord",
+        "color": "#8B6914",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [62.20, 37.60] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-nichapur",
+        "name": "Nichapur",
+        "name_ancien": null,
+        "route": "terrestre-nord",
+        "color": "#8B6914",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [58.80, 36.21] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-teheran",
+        "name": "Téhéran",
+        "name_ancien": "Rhagès",
+        "route": "terrestre-nord",
+        "color": "#8B6914",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [51.42, 35.69] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-hamadan",
+        "name": "Hamadan",
+        "name_ancien": "Ecbatane",
+        "route": "terrestre-nord",
+        "color": "#8B6914",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [48.51, 34.80] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-bagdad",
+        "name": "Bagdad",
+        "name_ancien": null,
+        "route": "terrestre-nord",
+        "color": "#8B6914",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [44.37, 33.31] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-palmyre",
+        "name": "Tadmor",
+        "name_ancien": "Palmyre",
+        "route": "terrestre-nord",
+        "color": "#8B6914",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [38.28, 34.56] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-antioche",
+        "name": "Antakya",
+        "name_ancien": "Antioche",
+        "route": "terrestre-nord",
+        "color": "#8B6914",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [36.16, 36.20] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-constantinople",
+        "name": "Istanbul",
+        "name_ancien": "Constantinople",
+        "route": "terrestre-nord",
+        "color": "#8B6914",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [28.98, 41.01] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-loulan",
+        "name": "Loulan",
+        "name_ancien": "Krorän",
+        "route": "terrestre-sud",
+        "color": "#A0522D",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [90.25, 40.52] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-khotan",
+        "name": "Khotan",
+        "name_ancien": "Yutian",
+        "route": "terrestre-sud",
+        "color": "#A0522D",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [79.93, 37.11] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-yarkand",
+        "name": "Yarkand",
+        "name_ancien": "Shache",
+        "route": "terrestre-sud",
+        "color": "#A0522D",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [77.25, 38.42] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-wakhan",
+        "name": "Corridor du Wakhan",
+        "name_ancien": null,
+        "route": "terrestre-sud",
+        "color": "#A0522D",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [71.58, 36.72] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-balkh",
+        "name": "Balkh",
+        "name_ancien": "Bactres",
+        "route": "terrestre-sud",
+        "color": "#A0522D",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [66.90, 36.76] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-taxila",
+        "name": "Taxila",
+        "name_ancien": "Takshashila",
+        "route": "terrestre-sud",
+        "color": "#A0522D",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [72.84, 33.74] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-peshawar",
+        "name": "Peshawar",
+        "name_ancien": "Purushapura",
+        "route": "terrestre-sud",
+        "color": "#A0522D",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [71.58, 34.01] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-canton",
+        "name": "Guangzhou",
+        "name_ancien": "Canton",
+        "route": "maritime",
+        "color": "#4A708B",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [113.26, 23.13] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-hanoi",
+        "name": "Hanoï",
+        "name_ancien": null,
+        "route": "maritime",
+        "color": "#4A708B",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [105.85, 21.03] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-malacca",
+        "name": "Malacca",
+        "name_ancien": null,
+        "route": "maritime",
+        "color": "#4A708B",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [101.97, 2.19] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-ceylan",
+        "name": "Colombo",
+        "name_ancien": "Ceylan",
+        "route": "maritime",
+        "color": "#4A708B",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [79.86, 6.93] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-calicut",
+        "name": "Kozhikode",
+        "name_ancien": "Calicut",
+        "route": "maritime",
+        "color": "#4A708B",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [75.77, 11.25] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-aden",
+        "name": "Aden",
+        "name_ancien": null,
+        "route": "maritime",
+        "color": "#4A708B",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [45.03, 12.79] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-djeddah",
+        "name": "Djeddah",
+        "name_ancien": null,
+        "route": "maritime",
+        "color": "#4A708B",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [39.17, 21.49] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-le-caire",
+        "name": "Le Caire",
+        "name_ancien": null,
+        "route": "maritime",
+        "color": "#4A708B",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [31.24, 30.04] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-alexandrie",
+        "name": "Alexandrie",
+        "name_ancien": null,
+        "route": "maritime",
+        "color": "#4A708B",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [29.92, 31.20] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-venise",
+        "name": "Venise",
+        "name_ancien": null,
+        "route": "maritime",
+        "color": "#4A708B",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [12.34, 45.44] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "steppes",
+        "name": "Route des Steppes (Nord)",
+        "color": "#6B4226",
+        "type": "route"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [116.40, 39.90],
+          [111.65, 40.82],
+          [106.83, 47.91],
+          [102.57, 47.92],
+          [76.95, 43.25],
+          [73.13, 46.80],
+          [67.00, 48.00],
+          [59.60, 46.35],
+          [51.88, 46.95],
+          [44.52, 48.71],
+          [37.62, 47.24],
+          [34.10, 44.95],
+          [33.53, 44.62],
+          [28.98, 41.01]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "inde",
+        "name": "Route vers l'Inde",
+        "color": "#8B4513",
+        "type": "route"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [75.99, 39.47],
+          [76.77, 35.88],
+          [74.35, 34.08],
+          [72.84, 33.74],
+          [71.58, 34.01],
+          [74.35, 31.55],
+          [77.21, 28.61],
+          [72.83, 21.17],
+          [76.27, 9.93]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-pekin",
+        "name": "Pékin",
+        "name_ancien": "Dadu / Khanbaliq",
+        "route": "steppes",
+        "color": "#6B4226",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [116.40, 39.90] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-hohhot",
+        "name": "Hohhot",
+        "name_ancien": null,
+        "route": "steppes",
+        "color": "#6B4226",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [111.65, 40.82] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-karakorum",
+        "name": "Karakorum",
+        "name_ancien": "Kharkhorin",
+        "route": "steppes",
+        "color": "#6B4226",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [102.57, 47.92] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-balkhach",
+        "name": "Balkhach",
+        "name_ancien": null,
+        "route": "steppes",
+        "color": "#6B4226",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [76.95, 43.25] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-aralsk",
+        "name": "Aralsk",
+        "name_ancien": null,
+        "route": "steppes",
+        "color": "#6B4226",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [61.66, 46.80] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-atyrau",
+        "name": "Atyrau",
+        "name_ancien": "Gouriev",
+        "route": "steppes",
+        "color": "#6B4226",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [51.88, 46.95] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-sarai",
+        "name": "Saraï",
+        "name_ancien": "Sarai Batu",
+        "route": "steppes",
+        "color": "#6B4226",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [44.52, 48.71] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-tanaïs",
+        "name": "Azov",
+        "name_ancien": "Tanaïs",
+        "route": "steppes",
+        "color": "#6B4226",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [39.42, 47.11] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-caffa",
+        "name": "Feodossia",
+        "name_ancien": "Caffa",
+        "route": "steppes",
+        "color": "#6B4226",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [35.38, 45.03] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-gilgit",
+        "name": "Gilgit",
+        "name_ancien": null,
+        "route": "inde",
+        "color": "#8B4513",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [74.35, 35.92] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-srinagar",
+        "name": "Srinagar",
+        "name_ancien": null,
+        "route": "inde",
+        "color": "#8B4513",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [74.80, 34.08] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-lahore",
+        "name": "Lahore",
+        "name_ancien": null,
+        "route": "inde",
+        "color": "#8B4513",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [74.35, 31.55] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-delhi",
+        "name": "Delhi",
+        "name_ancien": "Indraprastha",
+        "route": "inde",
+        "color": "#8B4513",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [77.21, 28.61] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-bharuch",
+        "name": "Bharuch",
+        "name_ancien": "Barygaza",
+        "route": "inde",
+        "color": "#8B4513",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [72.83, 21.17] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ville-muziris",
+        "name": "Kodungallur",
+        "name_ancien": "Muziris",
+        "route": "inde",
+        "color": "#8B4513",
+        "type": "city"
+      },
+      "geometry": { "type": "Point", "coordinates": [76.27, 9.93] }
+    }
+  ]
+}
