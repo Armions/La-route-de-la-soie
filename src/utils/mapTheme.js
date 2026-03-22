@@ -285,3 +285,192 @@ export function applyTheme(map, mode) {
     map.setPaintProperty('silk-road-cities', 'circle-stroke-color', silkStroke)
   } catch (_) {}
 }
+
+/**
+ * Switch map to HIGH mode — vintage hillshade + imagery (technique ESRI / John Nelson).
+ * Satellite légèrement désaturé, hillshade coloré prune/beurre par-dessus avec tons moyens
+ * transparents, eau bleu pastel, labels gris foncé.
+ */
+export function applyHighMode(map) {
+  // ── Satellite raster source ──
+  if (!map.getSource('satellite-tiles')) {
+    map.addSource('satellite-tiles', {
+      type: 'raster',
+      url: 'mapbox://mapbox.satellite',
+      tileSize: 256,
+    })
+  }
+
+  const beforeId = 'hillshade-layer'
+
+  // ── Satellite layer — désaturation légère (20%), couleurs naturelles visibles ──
+  const satPaint = {
+    'raster-saturation': -0.2,
+    'raster-brightness-min': 0.1,
+    'raster-brightness-max': 1.15,
+    'raster-contrast': 0.2,
+  }
+  if (!map.getLayer('satellite-base')) {
+    map.addLayer({ id: 'satellite-base', type: 'raster', source: 'satellite-tiles', paint: satPaint }, beforeId)
+  } else {
+    map.setLayoutProperty('satellite-base', 'visibility', 'visible')
+    for (const [k, v] of Object.entries(satPaint)) map.setPaintProperty('satellite-base', k, v)
+  }
+
+  // ── Hide country fills (satellite replaces them) ──
+  try { map.setPaintProperty('country-fills-traversed', 'fill-opacity', 0) } catch (_) {}
+  try { map.setPaintProperty('country-fills-other', 'fill-opacity', 0) } catch (_) {}
+
+  // ── Land background — warm beige (visible aux bords) ──
+  try { map.setPaintProperty('land', 'background-color', '#e8e0d0') } catch (_) {}
+
+  // ── Hillshade — MAXIMUM sculptural, ombres prune profondes ──
+  try {
+    map.setPaintProperty('hillshade-layer', 'hillshade-exaggeration', 1.0)          // maximum
+    map.setPaintProperty('hillshade-layer', 'hillshade-shadow-color', '#2a1b3d')    // prune très foncé
+    map.setPaintProperty('hillshade-layer', 'hillshade-highlight-color', '#f5ecd0')  // beurre chaud
+    map.setPaintProperty('hillshade-layer', 'hillshade-accent-color', '#5a4a6a')     // violet ombres douces
+  } catch (_) {}
+
+  // ── Eau — bleu pastel très pâle, PAS noir satellite, PAS gris ──
+  try {
+    map.setPaintProperty('water', 'fill-color', '#d4e4ed')
+    map.setPaintProperty('water', 'fill-opacity', 1)
+  } catch (_) {}
+  try {
+    map.setPaintProperty('waterway', 'line-color', '#b8d0e0')
+    map.setPaintProperty('waterway', 'line-opacity', 0.8)
+  } catch (_) {}
+
+  // ── Labels Mapbox natifs — gris foncé, halos clairs ──
+  const style = map.getStyle()
+  if (!style) return
+  for (const layer of style.layers) {
+    if (layer.type !== 'symbol') continue
+    if (layer.id.startsWith('capitals-') || layer.id.startsWith('waterways-') ||
+        layer.id.startsWith('climate-') || layer.id.startsWith('cultural-') ||
+        layer.id.startsWith('silk-road') || layer.id === 'mountain-labels' ||
+        layer.id === 'contour-labels') continue
+    try {
+      map.setPaintProperty(layer.id, 'text-color', '#444444')
+      map.setPaintProperty(layer.id, 'text-halo-color', 'rgba(255,255,255,0.85)')
+      map.setPaintProperty(layer.id, 'text-halo-width', 1.8)
+    } catch (_) {}
+  }
+
+  // Country labels
+  try {
+    map.setPaintProperty('country-label', 'text-color', '#333333')
+    map.setPaintProperty('country-label', 'text-halo-color', 'rgba(255,255,255,0.9)')
+    map.setPaintProperty('country-label', 'text-halo-width', 2.5)
+  } catch (_) {}
+
+  // Country outlines
+  try {
+    map.setPaintProperty('country-outlines-traversed', 'line-color', '#555555')
+    map.setPaintProperty('country-outlines-traversed', 'line-opacity', 0.5)
+  } catch (_) {}
+
+  // Admin boundaries
+  for (const layer of style.layers) {
+    if (layer.id.startsWith('admin-')) {
+      try {
+        map.setPaintProperty(layer.id, 'line-color', '#888888')
+        map.setPaintProperty(layer.id, 'line-opacity', 0.3)
+      } catch (_) {}
+    }
+  }
+
+  // Other fills — transparent (satellite visible)
+  for (const layer of style.layers) {
+    if (layer.type === 'fill' && !layer.id.startsWith('country-fills-') &&
+        layer.id !== 'water' && !layer.id.startsWith('geopolitics-') &&
+        !layer.id.startsWith('climate-') && !layer.id.startsWith('cultural-')) {
+      try { map.setPaintProperty(layer.id, 'fill-opacity', 0) } catch (_) {}
+    }
+  }
+
+  // Roads — very subtle
+  for (const layer of style.layers) {
+    if (ROAD_LAYERS.includes(layer.id)) {
+      try {
+        map.setPaintProperty(layer.id, 'line-color', '#999999')
+        map.setPaintProperty(layer.id, 'line-opacity', 0.15)
+      } catch (_) {}
+    }
+  }
+
+  // ── Custom layers theming ──
+
+  // Markers
+  try {
+    map.setPaintProperty('steps-simple', 'circle-stroke-color', '#ffffff')
+    map.setPaintProperty('steps-releve', 'circle-stroke-color', '#ffffff')
+  } catch (_) {}
+
+  // Route halos
+  for (const layer of style.layers) {
+    if (layer.id.startsWith('route-halo-')) {
+      try { map.setPaintProperty(layer.id, 'line-color', 'rgba(255,255,255,0.5)') } catch (_) {}
+    }
+  }
+
+  // Capitals
+  try {
+    map.setPaintProperty('capitals-marker', 'circle-color', '#3a3a3a')
+    map.setPaintProperty('capitals-marker', 'circle-stroke-color', '#ffffff')
+    map.setPaintProperty('capitals-label', 'text-color', '#3a3a3a')
+    map.setPaintProperty('capitals-label', 'text-halo-color', 'rgba(255,255,255,0.85)')
+  } catch (_) {}
+
+  // Contours
+  try {
+    map.setPaintProperty('contour-lines', 'line-color', '#8a8a7a')
+    map.setPaintProperty('contour-labels', 'text-color', '#6a6a60')
+    map.setPaintProperty('contour-labels', 'text-halo-color', 'rgba(255,255,255,0.7)')
+  } catch (_) {}
+
+  // Waterway labels
+  try {
+    map.setPaintProperty('waterways-label-rivers', 'text-color', '#5a7080')
+    map.setPaintProperty('waterways-label-rivers', 'text-halo-color', 'rgba(255,255,255,0.8)')
+    map.setPaintProperty('waterways-label-seas', 'text-color', '#5a7080')
+    map.setPaintProperty('waterways-label-seas', 'text-halo-color', 'rgba(255,255,255,0.8)')
+  } catch (_) {}
+
+  // Mountain labels
+  try {
+    map.setPaintProperty('mountain-labels', 'text-color', '#555550')
+    map.setPaintProperty('mountain-labels', 'text-halo-color', 'rgba(255,255,255,0.75)')
+  } catch (_) {}
+
+  // Railways
+  try { map.setPaintProperty('custom-rail-lines', 'line-color', '#666666') } catch (_) {}
+
+  // Silk roads
+  try {
+    map.setPaintProperty('silk-road-city-labels', 'text-halo-color', 'rgba(255,255,255,0.85)')
+    map.setPaintProperty('silk-road-cities', 'circle-stroke-color', '#ffffff')
+  } catch (_) {}
+
+  // Climate / cultural labels
+  try { map.setPaintProperty('climate-zones-label', 'text-halo-color', 'rgba(255,255,255,0.8)') } catch (_) {}
+  try { map.setPaintProperty('cultural-regions-label', 'text-halo-color', 'rgba(255,255,255,0.85)') } catch (_) {}
+}
+
+/**
+ * Switch map back to LOW mode (atlas gris).
+ * Removes satellite layer, restores hillshade defaults,
+ * then re-applies the Low theme (light or dark).
+ */
+export function removeHighMode(map, darkMode) {
+  // Hide satellite layer
+  try { map.setLayoutProperty('satellite-base', 'visibility', 'none') } catch (_) {}
+
+  // Restore country fills
+  try { map.setPaintProperty('country-fills-traversed', 'fill-opacity', 1) } catch (_) {}
+  try { map.setPaintProperty('country-fills-other', 'fill-opacity', 1) } catch (_) {}
+
+  // Re-apply the standard Low theme
+  applyTheme(map, darkMode ? 'dark' : 'light')
+}

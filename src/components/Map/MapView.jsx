@@ -2,12 +2,12 @@ import { useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { buildRouteSegments } from '../../utils/buildRouteSegments'
-import { applyTheme, TRAVERSED_COUNTRIES } from '../../utils/mapTheme'
+import { applyTheme, applyHighMode, removeHighMode, TRAVERSED_COUNTRIES } from '../../utils/mapTheme'
 
 const CENTER = [60, 40]
 const ZOOM = 3
 
-export default forwardRef(function MapView({ darkMode, steps, meta, locations, onStepClick, onMapMove, highlightedZone, timelineHoverFrac }, ref) {
+export default forwardRef(function MapView({ darkMode, mapMode, steps, meta, locations, onStepClick, onMapMove, highlightedZone, timelineHoverFrac }, ref) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const readyRef = useRef(false)
@@ -26,11 +26,29 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
     getSegmentCount: () => segmentCountRef.current,
   }))
 
+  // React to darkMode changes
   useEffect(() => {
-    if (readyRef.current && mapRef.current) {
-      applyTheme(mapRef.current, darkMode ? 'dark' : 'light')
+    if (!readyRef.current || !mapRef.current) return
+    const map = mapRef.current
+    if (mapMode === 'high') {
+      // In High mode, dark toggle only affects UI, NOT the map
+      // But re-apply high mode in case labels need refresh
+      applyHighMode(map)
+    } else {
+      applyTheme(map, darkMode ? 'dark' : 'light')
     }
-  }, [darkMode])
+  }, [darkMode, mapMode])
+
+  // React to mapMode changes
+  useEffect(() => {
+    if (!readyRef.current || !mapRef.current) return
+    const map = mapRef.current
+    if (mapMode === 'high') {
+      applyHighMode(map)
+    } else {
+      removeHighMode(map, darkMode)
+    }
+  }, [mapMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Highlight route segments matching hovered zone on frise
   useEffect(() => {
@@ -1197,7 +1215,11 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
 
       // Apply initial theme
       readyRef.current = true
-      applyTheme(map, darkMode ? 'dark' : 'light')
+      if (mapMode === 'high') {
+        applyHighMode(map)
+      } else {
+        applyTheme(map, darkMode ? 'dark' : 'light')
+      }
 
     })
 
@@ -1216,7 +1238,7 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
         style={{
           position: 'fixed',
           top: 16,
-          right: 56,
+          right: 100,
           fontSize: 11,
           fontFamily: 'monospace',
           color: darkMode ? '#eeeeee' : '#333333',
@@ -1229,6 +1251,36 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
           whiteSpace: 'nowrap',
         }}
       />
+      {/* High mode overlays: warm tint + paper grain */}
+      {mapMode === 'high' && (
+        <>
+          {/* Warm tint overlay — very subtle */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              zIndex: 4,
+              backgroundColor: '#d4c9a8',
+              opacity: 0.05,
+              mixBlendMode: 'multiply',
+            }}
+          />
+          {/* Paper grain texture — léger aspect mat */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              zIndex: 5,
+              opacity: 0.06,
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+              backgroundSize: '256px 256px',
+              mixBlendMode: 'multiply',
+            }}
+          />
+        </>
+      )}
     </div>
   )
 })

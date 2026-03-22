@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import MapView from './components/Map/MapView'
 import MapLegend from './components/Map/MapLegend'
 import DarkModeToggle from './components/Map/DarkModeToggle'
+import MapModeToggle from './components/Map/MapModeToggle'
 import Sidebar from './components/Sidebar/Sidebar'
 import StopHub from './components/StopHub/StopHub'
 import TextViewer from './components/TextViewer/TextViewer'
@@ -12,15 +13,16 @@ import { WindowManagerProvider, useWindowManager } from './hooks/useWindowManage
 
 function App() {
   const [darkMode, setDarkMode] = useState(false)
+  const [mapMode, setMapMode] = useState('low')
 
   return (
     <WindowManagerProvider>
-      <AppContent darkMode={darkMode} setDarkMode={setDarkMode} />
+      <AppContent darkMode={darkMode} setDarkMode={setDarkMode} mapMode={mapMode} setMapMode={setMapMode} />
     </WindowManagerProvider>
   )
 }
 
-function AppContent({ darkMode, setDarkMode }) {
+function AppContent({ darkMode, setDarkMode, mapMode, setMapMode }) {
   const mapViewRef = useRef(null)
   const { steps, meta, locations, loading, error } = useStepsData()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -148,6 +150,7 @@ function AppContent({ darkMode, setDarkMode }) {
         <MapView
           ref={mapViewRef}
           darkMode={darkMode}
+          mapMode={mapMode}
           steps={steps}
           meta={meta}
           locations={locations}
@@ -209,6 +212,7 @@ function AppContent({ darkMode, setDarkMode }) {
         })}
       </div>
 
+      <MapModeToggle darkMode={darkMode} onChange={setMapMode} />
       <DarkModeToggle onChange={setDarkMode} />
       <WindowTaskbar darkMode={darkMode} sidebarWidth={sidebarWidth} />
     </div>
