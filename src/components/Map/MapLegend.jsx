@@ -180,7 +180,7 @@ export default function MapLegend({ mapRef, darkMode }) {
     <div
       style={{
         position: 'absolute',
-        bottom: 48,
+        bottom: 108,
         right: 8,
         background: bg,
         borderRadius: 6,
@@ -188,8 +188,10 @@ export default function MapLegend({ mapRef, darkMode }) {
         border: `1px solid ${border}`,
         zIndex: 10,
         maxWidth: 180,
+        maxHeight: 200,
+        overflowY: 'auto',
         backdropFilter: 'blur(8px)',
-        pointerEvents: 'none',
+        pointerEvents: 'auto',
       }}
     >
       <div

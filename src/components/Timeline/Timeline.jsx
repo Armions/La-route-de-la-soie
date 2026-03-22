@@ -4,6 +4,7 @@ import { useMemo, useState, useRef, useCallback } from 'react'
  * Frise chronologique — barre horizontale en bas de la carte.
  * Segments colorés par zone, proportionnels à la durée.
  * Hover = tooltip, clic = flyTo sur la carte.
+ * Cultural region filter = "temporal zoom" on the selected region.
  */
 
 // Hauteur totale exportée pour que la taskbar se positionne au-dessus
@@ -43,13 +44,21 @@ function countryFr(name) {
   return COUNTRY_FR[name] || name
 }
 
-// Cultural region names for display
+// Cultural region names and colors for display
 const CULTURAL_REGION_NAMES = {
   'IT,GR,TR': 'Bassin méditerranéen',
   'GE,AM': 'Caucase',
   'KZ,UZ,KG': 'Asie centrale',
   'CN,HK': 'Monde chinois',
   'JP': 'Archipel japonais',
+}
+
+const CULTURAL_REGION_COLORS = {
+  'IT,GR,TR': '#E8A87C',
+  'GE,AM': '#85C1A3',
+  'KZ,UZ,KG': '#B8A9D4',
+  'CN,HK': '#E8B4B8',
+  'JP': '#7EB5D6',
 }
 
 function getCulturalRegionName(filterCountries) {
@@ -61,26 +70,31 @@ function getCulturalRegionName(filterCountries) {
   return null
 }
 
+function getCulturalRegionColor(filterCountries) {
+  if (!filterCountries) return null
+  const key = [...filterCountries].sort().join(',')
+  for (const [codes, color] of Object.entries(CULTURAL_REGION_COLORS)) {
+    if ([...codes.split(',')].sort().join(',') === key) return color
+  }
+  return null
+}
+
+function isStepInRegion(step, filterCountries) {
+  if (!filterCountries) return true
+  return filterCountries.includes(step.location?.country_code)
+}
+
 export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, activeStepId, onHoverZone, onHoverFrac, filterCountries }) {
   const barRef = useRef(null)
   const [hoverInfo, setHoverInfo] = useState(null)
   const [hoverSegIdx, setHoverSegIdx] = useState(null)
   const [hoverFracLocal, setHoverFracLocal] = useState(null)
 
-  // Build chronological zone segments + country transitions + step ticks
+  // Build chronological zone segments + country transitions + step ticks (always from ALL steps)
   const { segments, totalDays, dateStart, dateEnd, countryLabels, stepTicks } = useMemo(() => {
     if (!steps || steps.length === 0) return { segments: [], totalDays: 1, dateStart: null, dateEnd: null, countryLabels: [], stepTicks: [] }
 
-    // Filter by cultural region countries if active
-    let sourceSteps = steps
-    if (filterCountries && filterCountries.length > 0) {
-      sourceSteps = steps.filter((s) =>
-        filterCountries.includes(s.location?.country_code)
-      )
-      if (sourceSteps.length === 0) return { segments: [], totalDays: 1, dateStart: null, dateEnd: null, countryLabels: [], stepTicks: [] }
-    }
-
-    const sorted = [...sourceSteps].sort((a, b) => {
+    const sorted = [...steps].sort((a, b) => {
       const da = parseDate(a.date_start)
       const db = parseDate(b.date_start)
       if (!da || !db) return (a.id - b.id)
@@ -134,7 +148,7 @@ export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, a
       segments[i].width = segments[i].endFrac - segments[i].startFrac
     }
 
-    // Country labels at transitions — filter out overlapping ones
+    // Country labels at transitions
     const countryLabels = []
     let lastCountry = null
     for (const step of sorted) {
@@ -151,25 +165,148 @@ export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, a
     const stepTicks = sorted.map((step) => {
       const d = parseDate(step.date_start)
       const frac = totalMs > 0 && d ? (d - dateStart) / totalMs : 0
-      return { id: step.id, frac, isReleve: step.is_releve }
+      return { id: step.id, frac, isReleve: step.is_releve, step }
     })
 
     return { segments, totalDays, dateStart, dateEnd, countryLabels, stepTicks }
-  }, [steps, meta, filterCountries])
+  }, [steps, meta])
+
+  // Compute zoomed view when cultural region is active
+  const zoomed = useMemo(() => {
+    if (!filterCountries || !segments.length || !dateStart || !dateEnd) return null
+
+    // Find which segments belong to the region
+    const matchingIndices = []
+    segments.forEach((seg, i) => {
+      if (seg.steps.some((s) => isStepInRegion(s, filterCountries))) {
+        matchingIndices.push(i)
+      }
+    })
+    if (matchingIndices.length === 0) return null
+
+    // Collect all steps in the matching segments
+    const matchingSteps = []
+    for (const i of matchingIndices) {
+      matchingSteps.push(...segments[i].steps)
+    }
+    matchingSteps.sort((a, b) => {
+      const da = parseDate(a.date_start)
+      const db = parseDate(b.date_start)
+      return (da || 0) - (db || 0)
+    })
+
+    const zoomStart = parseDate(matchingSteps[0].date_start)
+    const zoomEnd = parseDate(matchingSteps[matchingSteps.length - 1].date_start)
+    const zoomMs = zoomEnd - zoomStart
+
+    // Recompute segments within the zoomed range
+    const zoomedSegments = matchingIndices.map((i) => {
+      const seg = segments[i]
+      const segStart = zoomMs > 0 ? (seg.firstDate - zoomStart) / zoomMs : 0
+      const segEnd = zoomMs > 0 ? (seg.lastDate - zoomStart) / zoomMs : 1
+      return { ...seg, zoomStartFrac: segStart, zoomEndFrac: segEnd }
+    })
+
+    // Distribute space among zoomed segments
+    for (let i = 0; i < zoomedSegments.length; i++) {
+      if (i < zoomedSegments.length - 1) {
+        zoomedSegments[i].zoomWidth = zoomedSegments[i + 1].zoomStartFrac - zoomedSegments[i].zoomStartFrac
+      } else {
+        zoomedSegments[i].zoomWidth = 1 - zoomedSegments[i].zoomStartFrac
+      }
+    }
+
+    // Step ticks within the zoomed range
+    const zoomedTicks = matchingSteps.map((step) => {
+      const d = parseDate(step.date_start)
+      const frac = zoomMs > 0 && d ? (d - zoomStart) / zoomMs : 0
+      return { id: step.id, frac, isReleve: step.is_releve, step }
+    })
+
+    // Country labels within zoomed range
+    const zoomedCountryLabels = []
+    let lastC = null
+    for (const step of matchingSteps) {
+      const country = step.location?.country
+      if (country && country !== lastC) {
+        const d = parseDate(step.date_start)
+        const frac = zoomMs > 0 ? (d - zoomStart) / zoomMs : 0
+        zoomedCountryLabels.push({ country: countryFr(country), frac, step })
+        lastC = country
+      }
+    }
+
+    return {
+      segments: zoomedSegments,
+      matchingIndices,
+      dateStart: zoomStart,
+      dateEnd: zoomEnd,
+      ticks: zoomedTicks,
+      countryLabels: zoomedCountryLabels,
+    }
+  }, [filterCountries, segments, dateStart, dateEnd])
+
+  const isZoomed = !!zoomed
 
   // Active step cursor position
   const activeFrac = useMemo(() => {
     if (activeStepId == null || !stepTicks.length) return null
+    if (isZoomed) {
+      const tick = zoomed.ticks.find((t) => t.id === activeStepId)
+      return tick ? tick.frac : null
+    }
     const tick = stepTicks.find((t) => t.id === activeStepId)
     return tick ? tick.frac : null
-  }, [activeStepId, stepTicks])
+  }, [activeStepId, stepTicks, isZoomed, zoomed])
 
   const handleMouseMove = useCallback((e) => {
-    if (!barRef.current || segments.length === 0) return
+    if (!barRef.current) return
     const rect = barRef.current.getBoundingClientRect()
     const x = e.clientX - rect.left
     const frac = Math.max(0, Math.min(1, x / rect.width))
 
+    if (isZoomed && zoomed) {
+      // In zoomed mode, find the closest step from the zoomed ticks
+      const zDateStart = zoomed.dateStart
+      const zDateEnd = zoomed.dateEnd
+      const zTotalMs = zDateEnd - zDateStart
+      const hoverDate = new Date(zDateStart.getTime() + frac * zTotalMs)
+
+      let closestStep = zoomed.ticks[0]?.step
+      let closestDist = Infinity
+      for (const tick of zoomed.ticks) {
+        const d = parseDate(tick.step.date_start)
+        if (d) {
+          const dist = Math.abs(d - hoverDate)
+          if (dist < closestDist) {
+            closestDist = dist
+            closestStep = tick.step
+          }
+        }
+      }
+
+      // Find which zoomed segment we're in
+      let segIdx = zoomed.segments.findIndex((seg, i) => {
+        const end = i < zoomed.segments.length - 1
+          ? zoomed.segments[i + 1].zoomStartFrac
+          : 1
+        return frac >= seg.zoomStartFrac && frac < end
+      })
+      if (segIdx === -1) segIdx = zoomed.segments.length - 1
+      const seg = zoomed.segments[segIdx]
+
+      if (closestStep && seg) {
+        setHoverInfo({ x: e.clientX, step: closestStep, segment: seg, date: hoverDate })
+        setHoverSegIdx(segIdx)
+        setHoverFracLocal(frac)
+        if (onHoverZone) onHoverZone(seg.zone)
+        if (onHoverFrac) onHoverFrac({ frac, zoneColor: seg.color })
+      }
+      return
+    }
+
+    // Normal (non-zoomed) mode
+    if (segments.length === 0) return
     let segIdx = segments.findIndex(
       (seg) => frac >= seg.startFrac && frac < seg.endFrac
     )
@@ -198,7 +335,7 @@ export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, a
     setHoverFracLocal(frac)
     if (onHoverZone) onHoverZone(seg.zone)
     if (onHoverFrac) onHoverFrac({ frac, zoneColor: seg.color })
-  }, [segments, dateStart, dateEnd, onHoverZone, onHoverFrac])
+  }, [segments, dateStart, dateEnd, onHoverZone, onHoverFrac, isZoomed, zoomed])
 
   const handleMouseLeave = useCallback(() => {
     setHoverInfo(null)
@@ -214,6 +351,7 @@ export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, a
   }, [hoverInfo, onStepClick])
 
   const culturalRegionName = getCulturalRegionName(filterCountries)
+  const culturalRegionColor = getCulturalRegionColor(filterCountries)
 
   if (!steps || steps.length === 0 || !dateStart) return null
 
@@ -230,11 +368,17 @@ export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, a
   const tickReleveColor = darkMode ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.55)'
   const cursorColor = darkMode ? '#ffffff' : '#222222'
 
-  // Filter country labels to avoid overlap (minimum 5% distance)
-  const visibleCountryLabels = countryLabels.filter((cl, i) => {
+  // Determine which dates and labels to show
+  const displayDateStart = isZoomed ? zoomed.dateStart : dateStart
+  const displayDateEnd = isZoomed ? zoomed.dateEnd : dateEnd
+  const displayTicks = isZoomed ? zoomed.ticks : stepTicks
+  const displayCountryLabels = isZoomed ? zoomed.countryLabels : countryLabels
+
+  // Filter country labels to avoid overlap
+  const visibleCountryLabels = displayCountryLabels.filter((cl, i) => {
     if (i === 0) return true
-    const prev = countryLabels[i - 1]
-    return (cl.frac - prev.frac) > 0.04
+    const prev = displayCountryLabels[i - 1]
+    return (cl.frac - prev.frac) > (isZoomed ? 0.03 : 0.04)
   })
 
   return (
@@ -310,12 +454,16 @@ export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, a
           marginBottom: 6,
           position: 'relative',
         }}>
-          <span style={{ fontSize: 10, color: textColor, fontWeight: 500 }}>
-            {formatDateLong(dateStart)}
+          <span style={{
+            fontSize: 10, color: textColor, fontWeight: 500,
+            transition: 'opacity 300ms',
+          }}>
+            {formatDateLong(displayDateStart)}
           </span>
           {culturalRegionName && !hoverInfo && (
             <span style={{
-              fontSize: 10, color: darkMode ? '#aaa' : '#666', fontWeight: 600,
+              fontSize: 10, color: culturalRegionColor || (darkMode ? '#aaa' : '#666'),
+              fontWeight: 600,
               position: 'absolute', left: '50%', transform: 'translateX(-50%)',
               fontStyle: 'italic',
             }}>
@@ -330,8 +478,11 @@ export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, a
               {hoverInfo.segment.label}
             </span>
           )}
-          <span style={{ fontSize: 10, color: textColor, fontWeight: 500 }}>
-            {formatDateLong(dateEnd)}
+          <span style={{
+            fontSize: 10, color: textColor, fontWeight: 500,
+            transition: 'opacity 300ms',
+          }}>
+            {formatDateLong(displayDateEnd)}
           </span>
         </div>
 
@@ -350,21 +501,41 @@ export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, a
             display: 'flex',
           }}
         >
-          {segments.map((seg, i) => (
-            <div
-              key={`${seg.zone}-${i}`}
-              style={{
-                flex: `0 0 ${seg.width * 100}%`,
-                background: seg.color,
-                opacity: hoverSegIdx != null ? (hoverSegIdx === i ? 1 : 0.5) : 0.75,
-                transition: 'opacity 150ms',
-                borderRight: i < segments.length - 1 ? `1px solid ${bg}` : 'none',
-              }}
-            />
-          ))}
+          {isZoomed ? (
+            /* ====== ZOOMED MODE ====== */
+            <>
+              {/* Render only the matching segments, expanded to full width */}
+              {zoomed.segments.map((seg, i) => (
+                <div
+                  key={`zoom-${seg.zone}-${i}`}
+                  style={{
+                    flex: `0 0 ${seg.zoomWidth * 100}%`,
+                    background: culturalRegionColor || seg.color,
+                    opacity: hoverSegIdx != null ? (hoverSegIdx === i ? 1 : 0.65) : 0.85,
+                    transition: 'opacity 150ms',
+                    borderRight: i < zoomed.segments.length - 1 ? `1px solid ${bg}` : 'none',
+                  }}
+                />
+              ))}
+            </>
+          ) : (
+            /* ====== NORMAL MODE ====== */
+            segments.map((seg, i) => (
+              <div
+                key={`${seg.zone}-${i}`}
+                style={{
+                  flex: `0 0 ${seg.width * 100}%`,
+                  background: seg.color,
+                  opacity: hoverSegIdx != null ? (hoverSegIdx === i ? 1 : 0.5) : 0.75,
+                  transition: 'opacity 150ms',
+                  borderRight: i < segments.length - 1 ? `1px solid ${bg}` : 'none',
+                }}
+              />
+            ))
+          )}
 
           {/* Step ticks overlay */}
-          {stepTicks.map((tick) => (
+          {displayTicks.map((tick) => (
             <div
               key={tick.id}
               style={{
@@ -375,6 +546,7 @@ export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, a
                 height: tick.isReleve ? 14 : 6,
                 background: tick.isReleve ? tickReleveColor : tickColor,
                 pointerEvents: 'none',
+                transition: 'left 300ms ease',
               }}
             />
           ))}
@@ -391,6 +563,7 @@ export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, a
               borderRadius: 1,
               pointerEvents: 'none',
               boxShadow: `0 0 4px ${darkMode ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)'}`,
+              transition: 'left 300ms ease',
             }} />
           )}
 
@@ -411,7 +584,7 @@ export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, a
           )}
         </div>
 
-        {/* Country labels below — only if enough space */}
+        {/* Country labels below */}
         <div style={{
           position: 'relative',
           height: 14,
@@ -419,7 +592,6 @@ export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, a
         }}>
           {visibleCountryLabels.map((cl, i) => {
             const leftPct = cl.frac * 100
-            // Clamp labels near edges
             const clampedLeft = Math.max(2, Math.min(leftPct, 95))
             return (
               <span
@@ -435,8 +607,9 @@ export default function Timeline({ steps, meta, darkMode, mapRef, onStepClick, a
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  maxWidth: '8%',
+                  maxWidth: isZoomed ? '15%' : '8%',
                   transform: i === 0 ? 'none' : 'translateX(-50%)',
+                  transition: 'left 300ms ease, max-width 300ms ease',
                 }}
               >
                 {cl.country}

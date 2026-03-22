@@ -127,6 +127,14 @@ export default function StopHub({ step, zoneColor, darkMode }) {
           }}>
             {formatLocation(step.location)}
           </p>
+          {step.coordinates?.lat != null && step.coordinates?.lon != null && (
+            <p style={{
+              margin: '3px 0 0', fontSize: 9.5, color: textMuted,
+              fontFamily: 'monospace', letterSpacing: '0.02em', opacity: 0.7,
+            }}>
+              {Math.abs(step.coordinates.lat).toFixed(4)}°{step.coordinates.lat >= 0 ? 'N' : 'S'}, {Math.abs(step.coordinates.lon).toFixed(4)}°{step.coordinates.lon >= 0 ? 'E' : 'W'}
+            </p>
+          )}
 
           {/* Relevé badge */}
           {isReleve && habitatType && (

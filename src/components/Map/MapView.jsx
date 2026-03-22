@@ -327,18 +327,18 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
         source: 'mountain-chains',
         maxzoom: 9,
         layout: {
-          'text-field': ['get', 'name'],
+          'text-field': ['concat', '▲ ', ['get', 'name']],
           'text-font': ['DIN Pro Italic', 'Arial Unicode MS Regular'],
-          'text-size': ['interpolate', ['linear'], ['zoom'], 3, 10, 7, 13],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 3, 11, 7, 14],
           'text-letter-spacing': 0.2,
           'text-allow-overlap': false,
           'visibility': 'none',
         },
         paint: {
-          'text-color': '#777777',
+          'text-color': '#555555',
           'text-halo-color': '#e8e8e8',
           'text-halo-width': 1.5,
-          'text-opacity': ['interpolate', ['linear'], ['zoom'], 3, 0.7, 8, 0.4],
+          'text-opacity': ['interpolate', ['linear'], ['zoom'], 3, 0.85, 8, 0.5],
         },
       })
 
@@ -993,7 +993,7 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
             firstSymbolId
           )
 
-          // Closed borders — dashed red lines (2px)
+          // Closed borders — dashed red lines (4px), placed ABOVE all other layers
           map.addLayer(
             {
               id: 'geopolitics-border-line',
@@ -1002,13 +1002,13 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
               filter: ['==', ['get', 'level'], 'border'],
               paint: {
                 'line-color': '#E74C3C',
-                'line-width': 2,
-                'line-opacity': 0.85,
+                'line-width': 4,
+                'line-opacity': 0.9,
                 'line-dasharray': [4, 3],
               },
               layout: { 'visibility': 'none' },
-            },
-            firstSymbolId
+            }
+            // No beforeId → placed on top of all layers
           )
         })
         .catch((err) => console.warn('Geopolitics GeoJSON load error:', err))
@@ -1130,50 +1130,42 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
         }
       })
 
-      // Railway layers — use explicit mapbox-streets source for reliable rail data
-      // Rail data available from zoom ~5 in streets-v8 tiles
-      if (!map.getSource('mapbox-streets-rail')) {
-        map.addSource('mapbox-streets-rail', {
-          type: 'vector',
-          url: 'mapbox://mapbox.mapbox-streets-v8',
+      // Railway layers — static GeoJSON for visibility at ALL zoom levels (3+)
+      fetch('/data/layers/railways.json')
+        .then((r) => r.json())
+        .then((railData) => {
+          if (!map.getSource('railways-static')) {
+            map.addSource('railways-static', { type: 'geojson', data: railData })
+          }
+          map.addLayer(
+            {
+              id: 'custom-rail-lines',
+              type: 'line',
+              source: 'railways-static',
+              minzoom: 3,
+              paint: {
+                'line-color': '#333333',
+                'line-width': [
+                  'interpolate', ['linear'], ['zoom'],
+                  3, 1.5,
+                  6, 2.0,
+                  10, 2.5,
+                  14, 3.0,
+                ],
+                'line-opacity': [
+                  'interpolate', ['linear'], ['zoom'],
+                  3, 0.6,
+                  6, 0.75,
+                  10, 0.85,
+                ],
+                'line-dasharray': [4, 3],
+              },
+              layout: { 'visibility': 'none' },
+            },
+            firstSymbolId
+          )
         })
-      }
-
-      // Major rail lines only at low zoom, all rail at higher zoom
-      map.addLayer(
-        {
-          id: 'custom-rail-lines',
-          type: 'line',
-          source: 'mapbox-streets-rail',
-          'source-layer': 'road',
-          minzoom: 5,
-          filter: [
-            'step', ['zoom'],
-            ['==', ['get', 'class'], 'major_rail'],
-            8, ['in', ['get', 'class'], ['literal', ['major_rail', 'minor_rail']]],
-            10, ['in', ['get', 'class'], ['literal', ['major_rail', 'minor_rail', 'service_rail']]],
-          ],
-          paint: {
-            'line-color': '#777777',
-            'line-width': [
-              'interpolate', ['linear'], ['zoom'],
-              5, 0.8,
-              7, 1.2,
-              10, 1.5,
-              14, 2.0,
-            ],
-            'line-opacity': [
-              'interpolate', ['linear'], ['zoom'],
-              5, 0.5,
-              7, 0.65,
-              10, 0.75,
-            ],
-            'line-dasharray': [4, 3],
-          },
-          layout: { 'visibility': 'none' },
-        },
-        firstSymbolId
-      )
+        .catch((err) => console.warn('Railways GeoJSON load error:', err))
       map._railLayerIds = ['custom-rail-lines']
 
       // Scale control — bottom-left
@@ -1206,21 +1198,22 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
         ref={containerRef}
         style={{ position: 'absolute', inset: 0 }}
       />
-      {/* GPS coordinates overlay — bottom-left, above scale */}
+      {/* GPS coordinates overlay — bottom-left, above frise */}
       <div
         ref={coordsRef}
         style={{
           position: 'absolute',
-          bottom: 28,
+          bottom: 108,
           left: 8,
-          fontSize: 10,
+          fontSize: 10.5,
           fontFamily: 'monospace',
-          color: darkMode ? '#888' : '#666',
-          background: darkMode ? 'rgba(26,26,30,0.7)' : 'rgba(255,255,255,0.7)',
-          padding: '2px 6px',
-          borderRadius: 3,
+          color: darkMode ? '#999' : '#555',
+          background: darkMode ? 'rgba(26,26,30,0.75)' : 'rgba(255,255,255,0.75)',
+          padding: '3px 8px',
+          borderRadius: 4,
+          backdropFilter: 'blur(6px)',
           pointerEvents: 'none',
-          zIndex: 5,
+          zIndex: 10,
           whiteSpace: 'nowrap',
         }}
       />
