@@ -4,7 +4,7 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import { buildRouteSegments } from '../../utils/buildRouteSegments'
 import { applyTheme, TRAVERSED_COUNTRIES } from '../../utils/mapTheme'
 
-const CENTER = [50, 55]
+const CENTER = [60, 40]
 const ZOOM = 3
 
 export default forwardRef(function MapView({ darkMode, steps, meta, locations, onStepClick, onMapMove, highlightedZone, timelineHoverFrac }, ref) {
@@ -112,8 +112,11 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
       style: 'mapbox://styles/mapbox/light-v11',
       center: CENTER,
       zoom: ZOOM,
+      minZoom: 2,
+      maxZoom: 18,
       projection: 'mercator',
       language: 'fr',
+      renderWorldCopies: false,
     })
 
     mapRef.current = map
@@ -1171,22 +1174,31 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
       // Scale control — bottom-left
       map.addControl(new mapboxgl.ScaleControl({ maxWidth: 120, unit: 'metric' }), 'bottom-left')
 
-      // GPS cursor coordinates — update DOM directly for performance
+      // GPS coordinates — fixed top-right, text updates on mousemove
+      function formatCoords(lat, lng) {
+        const latDir = lat >= 0 ? 'N' : 'S'
+        const lngDir = lng >= 0 ? 'E' : 'W'
+        return `${Math.abs(lat).toFixed(4)}°${latDir}, ${Math.abs(lng).toFixed(4)}°${lngDir}`
+      }
+      function showCenterCoords() {
+        if (!coordsRef.current) return
+        const c = map.getCenter()
+        coordsRef.current.textContent = formatCoords(c.lat, c.lng)
+      }
       map.on('mousemove', (e) => {
         if (coordsRef.current) {
-          const { lng, lat } = e.lngLat
-          const latDir = lat >= 0 ? 'N' : 'S'
-          const lngDir = lng >= 0 ? 'E' : 'W'
-          coordsRef.current.textContent = `${Math.abs(lat).toFixed(4)}° ${latDir}, ${Math.abs(lng).toFixed(4)}° ${lngDir}`
+          coordsRef.current.textContent = formatCoords(e.lngLat.lat, e.lngLat.lng)
         }
       })
-      map.on('mouseout', () => {
-        if (coordsRef.current) coordsRef.current.textContent = ''
-      })
+      map.on('mouseout', () => { showCenterCoords() })
+      map.on('moveend', () => { showCenterCoords() })
+      // Show center coords on load
+      showCenterCoords()
 
       // Apply initial theme
       readyRef.current = true
       applyTheme(map, darkMode ? 'dark' : 'light')
+
     })
 
     return () => map.remove()
@@ -1198,22 +1210,22 @@ export default forwardRef(function MapView({ darkMode, steps, meta, locations, o
         ref={containerRef}
         style={{ position: 'absolute', inset: 0 }}
       />
-      {/* GPS coordinates overlay — bottom-left, above frise */}
+      {/* GPS coordinates — fixed top-right, left of dark mode button */}
       <div
         ref={coordsRef}
         style={{
-          position: 'absolute',
-          bottom: 108,
-          left: 8,
-          fontSize: 10.5,
+          position: 'fixed',
+          top: 16,
+          right: 56,
+          fontSize: 11,
           fontFamily: 'monospace',
-          color: darkMode ? '#999' : '#555',
-          background: darkMode ? 'rgba(26,26,30,0.75)' : 'rgba(255,255,255,0.75)',
-          padding: '3px 8px',
+          color: darkMode ? '#eeeeee' : '#333333',
+          background: darkMode ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.8)',
+          border: darkMode ? '1px solid #444' : '1px solid #ddd',
+          padding: '4px 10px',
           borderRadius: 4,
-          backdropFilter: 'blur(6px)',
           pointerEvents: 'none',
-          zIndex: 10,
+          zIndex: 9999,
           whiteSpace: 'nowrap',
         }}
       />

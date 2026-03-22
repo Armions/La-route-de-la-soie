@@ -81,9 +81,10 @@ export default function Sidebar({
             onStepClick={onStepClick}
             activeStepId={activeStepId}
             mapRef={mapRef}
+            onCulturalFilter={onCulturalFilter}
           />
         ) : tab === 'calques' ? (
-          <CalquesTab darkMode={darkMode} mapRef={mapRef} onCulturalFilter={onCulturalFilter} />
+          <CalquesTab darkMode={darkMode} mapRef={mapRef} />
         ) : (
           <Atlas
             darkMode={darkMode}

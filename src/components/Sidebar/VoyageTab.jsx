@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from 'react'
+import { useRef, useEffect, useMemo, useState } from 'react'
 
 const CHAPTER_ORDER = [
   'europe',
@@ -11,6 +11,17 @@ const CHAPTER_ORDER = [
 ]
 
 const MINOR_ZONES = ['europe', 'transit']
+
+// Mapping zone → cultural region map layer IDs + country codes for frise filtering
+const ZONE_CULTURAL = {
+  mediterranee:  { regionId: 'mediterranee', countries: ['IT', 'GR', 'TR'] },
+  caucase:       { regionId: 'caucase', countries: ['GE', 'AM'] },
+  asie_centrale: { regionId: 'asie-centrale', countries: ['KZ', 'UZ', 'KG'] },
+  chine:         { regionId: 'monde-chinois', countries: ['CN', 'HK'] },
+  japon:         { regionId: 'japon', countries: ['JP'] },
+}
+
+const ALL_CULTURAL_REGION_IDS = ['mediterranee', 'caucase', 'asie-centrale', 'monde-chinois', 'japon']
 
 const ZONE_BOUNDS = {
   europe:        { center: [2.4, 48.8], zoom: 6 },
@@ -35,9 +46,11 @@ export default function VoyageTab({
   onStepClick,
   activeStepId,
   mapRef,
+  onCulturalFilter,
 }) {
   const listRef = useRef(null)
   const activeRef = useRef(null)
+  const [selectedZone, setSelectedZone] = useState(null)
 
   useEffect(() => {
     if (activeRef.current && listRef.current) {
@@ -63,8 +76,58 @@ export default function VoyageTab({
   function handleChapterClick(zone) {
     const map = mapRef.current?.getMap()
     if (!map) return
-    const bounds = ZONE_BOUNDS[zone]
-    if (bounds) map.flyTo({ center: bounds.center, zoom: bounds.zoom, duration: 1500 })
+
+    const isDeselect = selectedZone === zone
+    const next = isDeselect ? null : zone
+    setSelectedZone(next)
+
+    // Fly to zone or reset to global view
+    if (next) {
+      const bounds = ZONE_BOUNDS[zone]
+      if (bounds) map.flyTo({ center: bounds.center, zoom: bounds.zoom, duration: 1500 })
+    } else {
+      map.flyTo({ center: [60, 40], zoom: 3, duration: 1500 })
+    }
+
+    // Show/hide cultural region fills on map
+    try {
+      ALL_CULTURAL_REGION_IDS.forEach((rid) => {
+        const layerId = `cultural-region-fill-${rid}`
+        try {
+          if (next) {
+            const mapping = ZONE_CULTURAL[next]
+            const isActive = mapping && mapping.regionId === rid
+            map.setLayoutProperty(layerId, 'visibility', 'visible')
+            map.setPaintProperty(layerId, 'fill-opacity', isActive ? 0.45 : 0.06)
+          } else {
+            map.setLayoutProperty(layerId, 'visibility', 'none')
+            map.setPaintProperty(layerId, 'fill-opacity', 0.25)
+          }
+        } catch (_) {}
+      })
+      // Labels
+      try {
+        if (next) {
+          const mapping = ZONE_CULTURAL[next]
+          map.setLayoutProperty('cultural-regions-label', 'visibility', 'visible')
+          if (mapping) {
+            map.setPaintProperty('cultural-regions-label', 'text-opacity', [
+              'case',
+              ['==', ['get', 'id'], mapping.regionId], 1,
+              0.15,
+            ])
+          }
+        } else {
+          map.setLayoutProperty('cultural-regions-label', 'visibility', 'none')
+        }
+      } catch (_) {}
+    } catch (_) {}
+
+    // Notify parent for frise filtering
+    if (onCulturalFilter) {
+      const mapping = next ? ZONE_CULTURAL[next] : null
+      onCulturalFilter(mapping ? mapping.countries : null)
+    }
   }
 
   return (
@@ -161,6 +224,8 @@ export default function VoyageTab({
             if (!zoneInfo) return null
             const count = zoneCounts[zone] || 0
             const isMinor = MINOR_ZONES.includes(zone)
+            const isSelected = selectedZone === zone
+            const isDimmed = selectedZone && !isSelected
             return (
               <button
                 key={zone}
@@ -172,14 +237,14 @@ export default function VoyageTab({
                   padding: '8px 8px',
                   borderRadius: 6,
                   border: 'none',
-                  background: 'transparent',
+                  background: isSelected ? activeBg : 'transparent',
                   cursor: 'pointer',
                   textAlign: 'left',
-                  opacity: isMinor ? 0.45 : 1,
-                  transition: 'background 120ms',
+                  opacity: isDimmed ? 0.35 : isMinor ? 0.45 : 1,
+                  transition: 'background 120ms, opacity 200ms',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = hoverBg)}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = hoverBg }}
+                onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
               >
                 <span style={{
                   width: 10, height: 10, borderRadius: '50%',

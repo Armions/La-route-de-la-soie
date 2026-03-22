@@ -31,11 +31,12 @@ export default function DarkModeToggle({ onChange }) {
     <button
       onClick={toggle}
       title={dark ? 'Passer en mode clair' : 'Passer en mode sombre'}
-      className="fixed top-4 right-4 z-50 flex items-center justify-center w-9 h-9 rounded-full backdrop-blur-sm border transition-colors duration-200"
+      className="fixed top-4 right-4 flex items-center justify-center w-9 h-9 rounded-full backdrop-blur-sm border transition-colors duration-200"
       style={{
         background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
         borderColor: dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.12)',
         color: dark ? '#e0e0e0' : '#444444',
+        zIndex: 9999,
       }}
     >
       {dark ? (

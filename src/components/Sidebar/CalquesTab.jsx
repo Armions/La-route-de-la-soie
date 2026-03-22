@@ -36,30 +36,6 @@ const SILK_ROADS_ROUTES = [
   { id: 'maritime', name: 'Route maritime', color: '#4A708B', dash: '6 4' },
 ]
 
-const CULTURAL_REGIONS = [
-  { id: 'mediterranee', name: 'Bassin méditerranéen', desc: 'Italie, Grèce, côte turque ouest', color: '#E8A87C' },
-  { id: 'caucase', name: 'Caucase', desc: 'Géorgie, Arménie, Turquie est', color: '#85C1A3' },
-  { id: 'asie-centrale', name: 'Asie centrale', desc: 'Kazakhstan, Ouzbékistan, Kirghizstan', color: '#B8A9D4' },
-  { id: 'monde-chinois', name: 'Monde chinois', desc: 'Chine continentale, Hong Kong', color: '#E8B4B8' },
-  { id: 'japon', name: 'Archipel japonais', desc: 'Japon', color: '#7EB5D6' },
-]
-
-const CULTURAL_MAP_LAYERS = [
-  'cultural-region-fill-mediterranee',
-  'cultural-region-fill-caucase',
-  'cultural-region-fill-asie-centrale',
-  'cultural-region-fill-monde-chinois',
-  'cultural-region-fill-japon',
-  'cultural-regions-label',
-]
-
-const CULTURAL_REGION_COUNTRIES = {
-  'mediterranee': ['IT', 'GR', 'TR'],
-  'caucase': ['GE', 'AM'],
-  'asie-centrale': ['KZ', 'UZ', 'KG'],
-  'monde-chinois': ['CN', 'HK'],
-  'japon': ['JP'],
-}
 
 const GEOPOLITICS_MAP_LAYERS = [
   'geopolitics-conflict-fill', 'geopolitics-conflict-border',
@@ -181,14 +157,6 @@ const SECTIONS = [
         getMapLayers: () => CLIMATE_MAP_LAYERS,
       },
       {
-        id: 'cultural-regions',
-        label: 'Régions culturelles',
-        defaultOn: false,
-        implemented: true,
-        hasLegend: 'cultural',
-        getMapLayers: () => CULTURAL_MAP_LAYERS,
-      },
-      {
         id: 'silk-roads',
         label: 'Routes de la Soie historiques',
         defaultOn: false,
@@ -235,19 +203,17 @@ function buildDefaults() {
 
 const DEFAULTS = buildDefaults()
 
-export default function CalquesTab({ darkMode, mapRef, onCulturalFilter }) {
+export default function CalquesTab({ darkMode, mapRef }) {
   const [toggles, setToggles] = useState(DEFAULTS.toggles)
   const [collapsed, setCollapsed] = useState(DEFAULTS.collapsed)
   const [selectedClimate, setSelectedClimate] = useState(null)
-  const [selectedCultural, setSelectedCultural] = useState(null)
-
   const text = darkMode ? '#d0d0d0' : '#333333'
   const textMuted = darkMode ? '#666' : '#999'
   const divider = darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
-  const trackOff = darkMode ? '#3a3a42' : '#ccc'
+  const trackOff = darkMode ? '#4a4a4a' : '#ccc'
   const trackOn = darkMode ? '#5a6ae0' : '#4f6cf5'
-  const thumbOff = darkMode ? '#666' : '#ffffff'
-  const thumbOn = darkMode ? '#d0d0d0' : '#ffffff'
+  const thumbOff = darkMode ? '#888' : '#ffffff'
+  const thumbOn = darkMode ? '#e0e0e0' : '#ffffff'
   const legendBg = darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'
 
   function handleToggle(layerDef) {
@@ -274,10 +240,6 @@ export default function CalquesTab({ darkMode, mapRef, onCulturalFilter }) {
     // Reset selection when turning off
     if (layerDef.id === 'climate' && !next) {
       setSelectedClimate(null)
-    }
-    if (layerDef.id === 'cultural-regions' && !next) {
-      setSelectedCultural(null)
-      if (onCulturalFilter) onCulturalFilter(null)
     }
   }
 
@@ -314,46 +276,6 @@ export default function CalquesTab({ darkMode, mapRef, onCulturalFilter }) {
         map.setPaintProperty('climate-zones-label', 'text-opacity', 1)
       }
     } catch (_) {}
-  }
-
-  function handleCulturalSelect(regionId) {
-    const map = mapRef.current?.getMap()
-    if (!map) return
-
-    const next = selectedCultural === regionId ? null : regionId
-
-    setSelectedCultural(next)
-
-    try {
-      // Adjust opacity per-region fill layer
-      CULTURAL_REGIONS.forEach((region) => {
-        const layerId = `cultural-region-fill-${region.id}`
-        try {
-          if (next) {
-            map.setPaintProperty(layerId, 'fill-opacity', region.id === next ? 0.45 : 0.06)
-          } else {
-            map.setPaintProperty(layerId, 'fill-opacity', 0.25)
-          }
-        } catch (_) {}
-      })
-
-      // Label opacity
-      if (next) {
-        map.setPaintProperty('cultural-regions-label', 'text-opacity', [
-          'case',
-          ['==', ['get', 'id'], next], 1,
-          0.15,
-        ])
-      } else {
-        map.setPaintProperty('cultural-regions-label', 'text-opacity', 1)
-      }
-    } catch (_) {}
-
-    // Notify parent for frise filtering
-    if (onCulturalFilter) {
-      const countries = next ? (CULTURAL_REGION_COUNTRIES[next] || null) : null
-      onCulturalFilter(countries)
-    }
   }
 
   function toggleSection(sectionId) {
@@ -412,19 +334,21 @@ export default function CalquesTab({ darkMode, mapRef, onCulturalFilter }) {
                       <div
                         role="switch"
                         aria-checked={toggles[layerDef.id]}
-                        className="relative inline-flex items-center rounded-full transition-colors duration-200 ml-3 shrink-0"
+                        className="relative inline-flex items-center rounded-full ml-3 shrink-0"
                         style={{
                           width: 34,
                           height: 18,
-                          background: toggles[layerDef.id] ? trackOn : trackOff,
+                          backgroundColor: toggles[layerDef.id] ? trackOn : trackOff,
+                          transition: 'background-color 200ms',
                         }}
                       >
                         <span
-                          className="inline-block rounded-full shadow transition-transform duration-200"
+                          className="inline-block rounded-full transition-transform duration-200"
                           style={{
                             width: 14,
                             height: 14,
-                            background: toggles[layerDef.id] ? thumbOn : thumbOff,
+                            backgroundColor: toggles[layerDef.id] ? thumbOn : thumbOff,
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
                             transform: toggles[layerDef.id]
                               ? 'translateX(18px)'
                               : 'translateX(2px)',
@@ -486,57 +410,6 @@ export default function CalquesTab({ darkMode, mapRef, onCulturalFilter }) {
                         style={{ color: textMuted, borderTop: `1px solid ${divider}` }}
                       >
                         Classification Köppen-Geiger, d'après Beck et al., 2023, Scientific Data
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Cultural regions legend — shown when toggle is ON */}
-                  {layerDef.hasLegend === 'cultural' && toggles[layerDef.id] && (
-                    <div
-                      className="mt-1 mb-2 mx-1 rounded-md py-2 px-2"
-                      style={{ background: legendBg }}
-                    >
-                      <div className="flex flex-col gap-1">
-                        {CULTURAL_REGIONS.map((region) => (
-                          <div
-                            key={region.id}
-                            className="flex items-start gap-2 py-1 px-1 rounded cursor-pointer transition-opacity duration-150"
-                            style={{
-                              opacity: selectedCultural && selectedCultural !== region.id ? 0.35 : 1,
-                              background: selectedCultural === region.id
-                                ? (darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)')
-                                : 'transparent',
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleCulturalSelect(region.id)
-                            }}
-                          >
-                            <span
-                              className="shrink-0 rounded-full mt-0.5"
-                              style={{
-                                width: 10,
-                                height: 10,
-                                background: region.color,
-                                border: `1.5px solid ${region.color}`,
-                              }}
-                            />
-                            <div className="flex flex-col min-w-0">
-                              <span className="text-[11px] font-medium leading-tight" style={{ color: text }}>
-                                {region.name}
-                              </span>
-                              <span className="text-[10px] leading-tight" style={{ color: textMuted }}>
-                                {region.desc}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div
-                        className="text-[9px] mt-2 pt-1.5 italic leading-tight"
-                        style={{ color: textMuted, borderTop: `1px solid ${divider}` }}
-                      >
-                        Cliquer sur une région pour la mettre en valeur
                       </div>
                     </div>
                   )}
