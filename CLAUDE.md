@@ -61,20 +61,35 @@ route-de-la-soie/
 
 ## Design carte
 
-La carte est l'élément central, elle occupe tout l'espace à droite de la sidebar. Ce n'est pas un fond de carte utilitaire — c'est l'identité visuelle du projet. Le relief du terrain, sculpté par les ombres du hillshade, fait la beauté de la carte. Pense aux cartes relief d'Eduard Imhof ou au style Stamen Terrain.
+La carte est l'élément central, elle occupe tout l'espace à droite de la sidebar. Ce n'est pas un fond de carte utilitaire — c'est l'identité visuelle du projet.
 
-**Style :**
-- Hillshade en **nuances de gris** (SRTM / Mapbox Terrain) comme couche de base permanente
-- Fond neutre et sobre. Océans en aplat gris foncé mat (#2a2a2e)
-- Typographie fine et contemporaine : serif léger pour noms de pays, sans-serif pour villes
-- Le tracé coloré du voyage = **seul élément chromatique fort** sur le fond gris
-- Courbes topographiques activables (calque dédié, désactivé par défaut)
-- Ambiance CLAIRE et lumineuse — atlas contemporain, pas mode sombre
+### Deux modes de carte : Low / High
 
-**Affichage sélectif :**
-- Pays traversés (France, Italie, Grèce, Turquie, Géorgie, Arménie, Russie, Kazakhstan, Ouzbékistan, Kirghizstan, Chine, Japon) = plus clairs, détaillés (villes, régions)
-- Pays hors itinéraire = fond grisé neutre, moins de détails, seuls éléments physiques visibles
-- Le regard est naturellement guidé le long du tracé
+Bouton de switch en haut à droite (à côté du toggle light/dark).
+
+**Mode LOW (défaut)** — Atlas sobre
+- Hillshade en **nuances de gris** (SRTM / Mapbox Terrain)
+- Fond neutre, océans gris foncé mat
+- Le tracé coloré = seul élément chromatique
+- Light : fond gris clair, labels sombres
+- Dark : fond gris foncé, labels clairs, océans plus sombres — carte ET UI changent
+
+**Mode HIGH** — Terrain texturé (style VeryGoodMaps)
+- Base **satellite Mapbox désaturée** (couleurs naturelles atténuées : vert kaki forêts, ocre déserts, blanc neige)
+- **Hillshade** par-dessus avec forte exagération pour relief sculptural
+- **Blend mode** (multiply ou soft-light) pour fusionner satellite + hillshade
+- **Grain/texture papier** en overlay CSS (PNG transparent)
+- Océans en gris clair texturé (pas bleu)
+- Light : la carte texturée telle quelle + UI claire
+- Dark : la carte RESTE IDENTIQUE (pas de changement), seule l'UI (sidebar, frise, fenêtres) passe en sombre
+
+**Éléments communs aux deux modes :**
+- Typographie fine : serif léger pour pays, sans-serif pour villes
+- Affichage sélectif : pays traversés plus détaillés, hors itinéraire grisés
+- Contour noir fin autour des 13 pays traversés
+- Coordonnées GPS en haut à droite (fixe, se met à jour au mouvement souris)
+- Légende dynamique en bas à droite (au-dessus de la frise)
+- renderWorldCopies: false, center [60, 40], zoom 3, minZoom 2
 
 ---
 
@@ -85,15 +100,17 @@ Panneau fixe à gauche (~320px), rétractable via bouton chevron. Trois onglets 
 ### Onglet VOYAGE (actif par défaut)
 - **Titre** : "Notre Route de la Soie" (serif élégant) + sous-titre
 - **Compteurs** : 34 869 km | 13 pays | 7 mois | 156 étapes (depuis data_model.json > meta)
-- **Chapitres** (= zones) : pastille couleur + nom + nombre d'étapes → clic = flyTo sur la zone
+- **Chapitres** (= zones) : pastille couleur + nom + nombre d'étapes → clic = flyTo sur la zone + colore la zone sur la carte en semi-transparent + frise zoom sur le segment. Re-clic = déselectionne, retour vue complète.
 - **Liste des 156 étapes** : scrollable, groupée par zone, pastille + nom + ville + date. Clic = centre carte + ouvre hub. Étape active surlignée. Relevés avec indicateur visuel.
 
 ### Onglet CALQUES
 Sections repliables :
 - **Voyage** : Tracé, Étapes, Relevés architecturaux
-- **Géographie** : Pays traversés, Capitales, Fleuves & mers, Courbes topographiques
-- **Thématique** : Climat (Köppen-Geiger), Régions culturelles
+- **Géographie** : Pays traversés, Capitales, Fleuves & mers, Courbes topographiques, Reliefs & déserts (labels montagnes/déserts)
+- **Thématique** : Climat (Köppen-Geiger), Routes de la Soie historiques
 - **Contexte** : Contexte géopolitique (conflits + frontières + pays déconseillés), Réseau ferré
+
+> Note : les Régions culturelles ont été fusionnées avec les Chapitres de l'onglet Voyage (clic chapitre = colore la zone sur la carte + zoom frise).
 
 ### Onglet ATLAS
 Grille des 14 habitats vernaculaires relevés. Clic → centre carte + ouvre hub relevé.
@@ -142,7 +159,15 @@ Sélection d'un climat = mise en valeur de la zone, le reste grisé. Créditer "
 
 Tooltip au survol de chaque zone : nom, dates, impact concret sur l'itinéraire (1-2 phrases FR). Note générale "Situation en date du voyage, mai-déc 2025. Source : Fil d'Ariane / MEAE France".
 
-**Réseau ferré** — source OSM/Mapbox, calque activable, désactivé par défaut.
+**Routes de la Soie historiques** — 5 routes en GeoJSON LineString tiretées, tracées via les villes-nœuds documentées :
+- Route centrale des oasis (or #8B6914) : Chang'an → Dunhuang → Kashgar → Samarcande → Antioche → Constantinople
+- Route sud du Tarim (brun #A0522D) : Chang'an → Dunhuang → Khotan → Kashgar → Balkh → Taxila
+- Route des Steppes (brun foncé #6B4226) : Pékin → Karakorum → steppes → Crimée → Constantinople
+- Route vers l'Inde (brun-rouge #8B4513) : Kashgar → Karakoram → Taxila → Muziris
+- Route maritime (bleu-gris #4A708B) : Canton → Malacca → Ceylan → Aden → Alexandrie → Venise
+Villes-étapes avec tooltip nom moderne + nom antique. Sources : Williams, T.D. (2014), ICOMOS ; UNESCO (2014), patrimoine mondial n°1442 ; Christian, D. (2000), Journal of World History.
+
+**Réseau ferré** — grandes lignes ferroviaires des 13 pays traversés en GeoJSON statique. Lignes noires (#333) 2px, visibles dès zoom 3. Source OSM.
 
 **Capitales** — 13 capitales des pays traversés, calque dédié.
 
@@ -253,8 +278,11 @@ Carte hillshade gris, tracé coloré par zone, 156 marqueurs, dark mode toggle, 
 ### Phase 2 — Narration ✅ FAIT
 Sidebar (Voyage + Calques), fenêtres flottantes, hub arrêt (simple + relevé), TextViewer, frise chrono, curseur interactif
 
-### Phase 3 — Atlas ⬜ EN COURS
-Calques thématiques, atlas des 14 habitats
+### Phase 3 — Atlas ✅ FAIT
+Calques thématiques (capitales, fleuves, topo/labels, climat Köppen-Geiger, routes de la soie historiques, contexte géopolitique, réseau ferré), atlas 14 habitats, fusion chapitres+régions culturelles
+
+### Phase 3.5 — Style Terrain (EN COURS)
+Mode carte High (satellite désaturé + hillshade + grain papier), bouton Low/High
 
 ### Phase 4 — Outils
 Admin, viewer 3D (.glb), viewer photo, export JPEG
@@ -403,4 +431,11 @@ Toggle Calques > Contexte. Désactivé par défaut.
 - Phase 1 complète : carte hillshade, tracé 7 couleurs, 156 marqueurs, dark mode, calques. Corrections style carte (désaturation, affichage sélectif pays).
 - Phase 2 complète : sidebar Voyage/Calques, hub arrêt simple + relevé, FloatingWindow (drag/minimize/multi), TextViewer, frise chrono synchronisée, curseur interactif frise→carte.
 - Corrections : encodage °C, espacement design, traduction FR, fenêtres minimisées (z-index, position).
-- **Prochaine session** : Phase 3 (calques thématiques + atlas habitats).
+
+### 2026-03-22 — Session 4 : Phase 3 + corrections + design
+- **Phase 3 complète** : calques capitales, fleuves, courbes topo (labels montagnes/déserts aux zooms faibles), climat Köppen-Geiger (9 zones), contexte géopolitique (3 niveaux : conflits, frontières fermées, pays déconseillés MEAE), réseau ferré, routes de la soie historiques (5 routes sourcées ICOMOS/UNESCO), atlas 14 habitats.
+- **Fusion chapitres + régions culturelles** : clic chapitre dans onglet Voyage = colore zone sur carte + zoom frise. Supprimé le calque régions culturelles (redondant).
+- **Routes de la soie** : 5 routes historiques ajoutées (centrale, sud Tarim, steppes, Inde, maritime) avec villes-étapes et tooltips. Sources académiques créditées.
+- **Corrections récurrentes** : frontières/conflits (polygones OSM précis), réseau ferré (GeoJSON statique visible dès zoom 3), coordonnées GPS fixe en haut à droite, cadrage carte (center [60,40] zoom 3, renderWorldCopies false).
+- **Décision design** : 2 modes de carte Low (atlas gris sobre) / High (satellite désaturé + hillshade + grain papier). Chacun avec light/dark. En mode High dark, seule l'UI change, la carte reste identique.
+- **Prochaine session** : implémenter le mode High (terrain texturé), corriger derniers bugs (toggles dark mode, frontières précises), préparer Phase 4 (viewer photo/3D/dessins — Nicolas prépare ses assets).
