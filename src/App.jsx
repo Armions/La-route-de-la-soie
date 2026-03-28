@@ -3,6 +3,7 @@ import MapView from './components/Map/MapView'
 import MapLegend from './components/Map/MapLegend'
 import DarkModeToggle from './components/Map/DarkModeToggle'
 import MapModeToggle from './components/Map/MapModeToggle'
+import ExportButton from './components/Map/ExportButton'
 import Sidebar from './components/Sidebar/Sidebar'
 import StopHub from './components/StopHub/StopHub'
 import TextViewer from './components/TextViewer/TextViewer'
@@ -24,6 +25,7 @@ function App() {
 
 function AppContent({ darkMode, setDarkMode, mapMode, setMapMode }) {
   const mapViewRef = useRef(null)
+  const mapAreaRef = useRef(null)
   const { steps, meta, locations, loading, error } = useStepsData()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [activeStepId, setActiveStepId] = useState(null)
@@ -146,7 +148,7 @@ function AppContent({ darkMode, setDarkMode, mapMode, setMapMode }) {
       </div>
 
       {/* Map */}
-      <div style={{ flex: 1, height: '100%', position: 'relative', minWidth: 0 }}>
+      <div ref={mapAreaRef} style={{ flex: 1, height: '100%', position: 'relative', minWidth: 0 }}>
         <MapView
           ref={mapViewRef}
           darkMode={darkMode}
@@ -212,6 +214,7 @@ function AppContent({ darkMode, setDarkMode, mapMode, setMapMode }) {
         })}
       </div>
 
+      <ExportButton darkMode={darkMode} mapRef={mapViewRef} mapAreaRef={mapAreaRef} />
       <MapModeToggle darkMode={darkMode} onChange={setMapMode} />
       <DarkModeToggle onChange={setDarkMode} />
       <WindowTaskbar darkMode={darkMode} sidebarWidth={sidebarWidth} />

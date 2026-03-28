@@ -135,6 +135,7 @@ export default forwardRef(function MapView({ darkMode, mapMode, steps, meta, loc
       projection: 'mercator',
       language: 'fr',
       renderWorldCopies: false,
+      preserveDrawingBuffer: true,
     })
 
     mapRef.current = map
@@ -933,7 +934,7 @@ export default forwardRef(function MapView({ darkMode, mapMode, steps, meta, loc
           'source-layer': 'country_boundaries',
           filter: [
             'all',
-            ['in', ['get', 'iso_3166_1'], ['literal', ['IR', 'RU', 'AZ']]],
+            ['in', ['get', 'iso_3166_1'], ['literal', ['IR', 'RU', 'AZ', 'AF', 'TM']]],
             ['any',
               ['==', 'all', ['get', 'worldview']],
               ['in', 'US', ['get', 'worldview']],
@@ -957,7 +958,7 @@ export default forwardRef(function MapView({ darkMode, mapMode, steps, meta, loc
           'source-layer': 'country_boundaries',
           filter: [
             'all',
-            ['in', ['get', 'iso_3166_1'], ['literal', ['IR', 'RU', 'AZ']]],
+            ['in', ['get', 'iso_3166_1'], ['literal', ['IR', 'RU', 'AZ', 'AF', 'TM']]],
             ['any',
               ['==', 'all', ['get', 'worldview']],
               ['in', 'US', ['get', 'worldview']],
@@ -1031,6 +1032,38 @@ export default forwardRef(function MapView({ darkMode, mapMode, steps, meta, loc
             }
             // No beforeId → placed on top of all layers
           )
+
+          // ---- NIVEAU 4 — Zones de vigilance renforcée (orange clair) ----
+          map.addLayer(
+            {
+              id: 'geopolitics-vigilance-fill',
+              type: 'fill',
+              source: 'geopolitics',
+              filter: ['==', ['get', 'level'], 'vigilance'],
+              paint: {
+                'fill-color': '#F39C12',
+                'fill-opacity': 0.12,
+              },
+              layout: { 'visibility': 'none' },
+            },
+            firstSymbolId
+          )
+
+          map.addLayer(
+            {
+              id: 'geopolitics-vigilance-border',
+              type: 'line',
+              source: 'geopolitics',
+              filter: ['==', ['get', 'level'], 'vigilance'],
+              paint: {
+                'line-color': '#F39C12',
+                'line-width': 1.5,
+                'line-opacity': 0.5,
+              },
+              layout: { 'visibility': 'none' },
+            },
+            firstSymbolId
+          )
         })
         .catch((err) => console.warn('Geopolitics GeoJSON load error:', err))
 
@@ -1046,8 +1079,10 @@ export default forwardRef(function MapView({ darkMode, mapMode, steps, meta, loc
       // Tooltip data for déconseillé countries (vector tiles have no tooltip property)
       const DECONSEILLE_INFO = {
         'IR': { name: 'Iran', tooltip: "Formellement déconseillé par le MEAE. Frontières terrestres non praticables." },
-        'RU': { name: 'Russie', tooltip: "Formellement déconseillé par le MEAE depuis 2022. Traversée effectuée (Vladikavkaz → Astrakhan)." },
+        'RU': { name: 'Russie', tooltip: "Formellement déconseillé par le MEAE depuis 2022. Traversée effectuée malgré tout." },
         'AZ': { name: 'Azerbaïdjan', tooltip: "Inaccessible depuis l'Arménie. Relations diplomatiques rompues." },
+        'AF': { name: 'Afghanistan', tooltip: "Formellement déconseillé. Frontières fermées." },
+        'TM': { name: 'Turkménistan', tooltip: "Visa très restrictif, transit contrôlé." },
       }
 
       // Deconseille layer tooltip — country-boundaries source, look up by ISO
@@ -1073,17 +1108,18 @@ export default forwardRef(function MapView({ darkMode, mapMode, steps, meta, loc
         geoPopup.remove()
       })
 
-      // Conflict zones + closed borders — GeoJSON source with tooltip in properties
-      const geoTooltipLayers = ['geopolitics-conflict-fill', 'geopolitics-border-line']
+      // Conflict zones + closed borders + vigilance — GeoJSON source with tooltip in properties
+      const geoTooltipLayers = ['geopolitics-conflict-fill', 'geopolitics-border-line', 'geopolitics-vigilance-fill']
       geoTooltipLayers.forEach((layerId) => {
         map.on('mouseenter', layerId, (e) => {
           map.getCanvas().style.cursor = 'pointer'
           const props = e.features[0].properties
+          const titleColor = props.level === 'vigilance' ? '#F39C12' : '#C0392B'
           geoPopup
             .setLngLat(e.lngLat)
             .setHTML(
               `<div style="font-size:12px;line-height:1.4">` +
-              `<strong style="color:#C0392B">${props.name}</strong><br/>` +
+              `<strong style="color:${titleColor}">${props.name}</strong><br/>` +
               `<span style="color:#555">${props.tooltip}</span></div>`
             )
             .addTo(map)
@@ -1238,7 +1274,7 @@ export default forwardRef(function MapView({ darkMode, mapMode, steps, meta, loc
         style={{
           position: 'fixed',
           top: 16,
-          right: 100,
+          right: 200,
           fontSize: 11,
           fontFamily: 'monospace',
           color: darkMode ? '#eeeeee' : '#333333',

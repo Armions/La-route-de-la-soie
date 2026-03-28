@@ -41,6 +41,7 @@ const GEOPOLITICS_MAP_LAYERS = [
   'geopolitics-conflict-fill', 'geopolitics-conflict-border',
   'geopolitics-deconseille-fill', 'geopolitics-deconseille-border',
   'geopolitics-border-line',
+  'geopolitics-vigilance-fill', 'geopolitics-vigilance-border',
 ]
 
 const SECTIONS = [
@@ -456,7 +457,7 @@ export default function CalquesTab({ darkMode, mapRef }) {
                         className="text-[10px] leading-snug mb-2 px-1"
                         style={{ color: text }}
                       >
-                        Contraintes géopolitiques en date du voyage (mai-déc 2025) ayant influencé le choix de l'itinéraire.
+                        Contraintes géopolitiques (mai-déc 2025) ayant influencé le choix de l'itinéraire.
                       </div>
                       <div className="flex flex-col gap-1.5">
                         {/* Niveau 1 — Conflit actif */}
@@ -505,12 +506,28 @@ export default function CalquesTab({ darkMode, mapRef }) {
                             Pays déconseillé (MEAE)
                           </span>
                         </div>
+                        {/* Niveau 4 — Zone de vigilance renforcée */}
+                        <div className="flex items-center gap-2 px-1">
+                          <span
+                            className="shrink-0"
+                            style={{
+                              width: 12,
+                              height: 12,
+                              background: 'rgba(243,156,18,0.12)',
+                              border: '1.5px solid rgba(243,156,18,0.5)',
+                              borderRadius: 2,
+                            }}
+                          />
+                          <span className="text-[10px]" style={{ color: text }}>
+                            Zone de vigilance renforcée
+                          </span>
+                        </div>
                       </div>
                       <div
                         className="text-[9px] mt-2 pt-1.5 italic leading-tight"
                         style={{ color: textMuted, borderTop: `1px solid ${divider}` }}
                       >
-                        Contraintes géopolitiques (mai-déc 2025). Source : MEAE France.
+                        Contraintes géopolitiques (mai-déc 2025). Sources : MEAE France, Fil d'Ariane.
                       </div>
                     </div>
                   )}
