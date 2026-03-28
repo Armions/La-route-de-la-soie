@@ -287,9 +287,11 @@ export function applyTheme(map, mode) {
 }
 
 /**
- * Switch map to HIGH mode — vintage hillshade + imagery (technique ESRI / John Nelson).
- * Satellite légèrement désaturé, hillshade coloré prune/beurre par-dessus avec tons moyens
- * transparents, eau bleu pastel, labels gris foncé.
+ * Switch map to HIGH mode — satellite + hillshade sculptural.
+ * Couche 1 : satellite Mapbox désaturé 25 %, couleurs naturelles visibles.
+ * Couche 2 : hillshade prune/beurre à 50 % opacité par-dessus.
+ * Couche 3 : eau bleu pastel pour masquer le bleu satellite.
+ * Pas de landcover, pas de fond beige.
  */
 export function applyHighMode(map) {
   // ── Satellite raster source ──
@@ -303,12 +305,12 @@ export function applyHighMode(map) {
 
   const beforeId = 'hillshade-layer'
 
-  // ── Satellite layer — désaturation légère (20%), couleurs naturelles visibles ──
+  // ── Couche 1 : satellite — désaturation légère, couleurs naturelles ──
   const satPaint = {
-    'raster-saturation': -0.2,
-    'raster-brightness-min': 0.1,
-    'raster-brightness-max': 1.15,
-    'raster-contrast': 0.2,
+    'raster-saturation': -0.1,
+    'raster-brightness-min': 0.08,
+    'raster-brightness-max': 1.1,
+    'raster-contrast': 0.15,
   }
   if (!map.getLayer('satellite-base')) {
     map.addLayer({ id: 'satellite-base', type: 'raster', source: 'satellite-tiles', paint: satPaint }, beforeId)
@@ -317,22 +319,31 @@ export function applyHighMode(map) {
     for (const [k, v] of Object.entries(satPaint)) map.setPaintProperty('satellite-base', k, v)
   }
 
-  // ── Hide country fills (satellite replaces them) ──
+  // ── Hide country fills + all other fills (satellite replaces everything) ──
   try { map.setPaintProperty('country-fills-traversed', 'fill-opacity', 0) } catch (_) {}
   try { map.setPaintProperty('country-fills-other', 'fill-opacity', 0) } catch (_) {}
 
-  // ── Land background — warm beige (visible aux bords) ──
-  try { map.setPaintProperty('land', 'background-color', '#e8e0d0') } catch (_) {}
+  const style = map.getStyle()
+  if (!style) return
 
-  // ── Hillshade — MAXIMUM sculptural, ombres prune profondes ──
+  for (const layer of style.layers) {
+    if (layer.type !== 'fill') continue
+    if (layer.id === 'water' || layer.id.startsWith('country-fills-') ||
+        layer.id.startsWith('geopolitics-') || layer.id.startsWith('climate-') ||
+        layer.id.startsWith('cultural-')) continue
+    try { map.setPaintProperty(layer.id, 'fill-opacity', 0) } catch (_) {}
+  }
+
+  // ── Couche 2 : hillshade — sculptural, semi-transparent pour laisser le satellite visible ──
   try {
-    map.setPaintProperty('hillshade-layer', 'hillshade-exaggeration', 1.0)          // maximum
-    map.setPaintProperty('hillshade-layer', 'hillshade-shadow-color', '#2a1b3d')    // prune très foncé
-    map.setPaintProperty('hillshade-layer', 'hillshade-highlight-color', '#f5ecd0')  // beurre chaud
-    map.setPaintProperty('hillshade-layer', 'hillshade-accent-color', '#5a4a6a')     // violet ombres douces
+    map.setPaintProperty('hillshade-layer', 'hillshade-exaggeration', 1.0)
+    map.setPaintProperty('hillshade-layer', 'hillshade-shadow-color', '#2a1b3d')
+    map.setPaintProperty('hillshade-layer', 'hillshade-highlight-color', '#f5ecd0')
+    map.setPaintProperty('hillshade-layer', 'hillshade-accent-color', '#5a4a6a')
+    map.setLayoutProperty('hillshade-layer', 'visibility', 'visible')
   } catch (_) {}
 
-  // ── Eau — bleu pastel très pâle, PAS noir satellite, PAS gris ──
+  // ── Couche 3 : eau bleu pastel — masque le bleu foncé satellite ──
   try {
     map.setPaintProperty('water', 'fill-color', '#d4e4ed')
     map.setPaintProperty('water', 'fill-opacity', 1)
@@ -343,8 +354,6 @@ export function applyHighMode(map) {
   } catch (_) {}
 
   // ── Labels Mapbox natifs — gris foncé, halos clairs ──
-  const style = map.getStyle()
-  if (!style) return
   for (const layer of style.layers) {
     if (layer.type !== 'symbol') continue
     if (layer.id.startsWith('capitals-') || layer.id.startsWith('waterways-') ||
@@ -378,15 +387,6 @@ export function applyHighMode(map) {
         map.setPaintProperty(layer.id, 'line-color', '#888888')
         map.setPaintProperty(layer.id, 'line-opacity', 0.3)
       } catch (_) {}
-    }
-  }
-
-  // Other fills — transparent (satellite visible)
-  for (const layer of style.layers) {
-    if (layer.type === 'fill' && !layer.id.startsWith('country-fills-') &&
-        layer.id !== 'water' && !layer.id.startsWith('geopolitics-') &&
-        !layer.id.startsWith('climate-') && !layer.id.startsWith('cultural-')) {
-      try { map.setPaintProperty(layer.id, 'fill-opacity', 0) } catch (_) {}
     }
   }
 

@@ -15,6 +15,8 @@ export default function Sidebar({
   activeStepId,
   mapRef,
   onCulturalFilter,
+  timelineVisible,
+  onTimelineVisibleChange,
 }) {
   const [tab, setTab] = useState('voyage')
 
@@ -84,7 +86,7 @@ export default function Sidebar({
             onCulturalFilter={onCulturalFilter}
           />
         ) : tab === 'calques' ? (
-          <CalquesTab darkMode={darkMode} mapRef={mapRef} />
+          <CalquesTab darkMode={darkMode} mapRef={mapRef} timelineVisible={timelineVisible} onTimelineVisibleChange={onTimelineVisibleChange} />
         ) : (
           <Atlas
             darkMode={darkMode}

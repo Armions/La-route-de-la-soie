@@ -32,6 +32,7 @@ function AppContent({ darkMode, setDarkMode, mapMode, setMapMode }) {
   const [highlightedZone, setHighlightedZone] = useState(null)
   const [timelineHoverFrac, setTimelineHoverFrac] = useState(null)
   const [filterCountries, setFilterCountries] = useState(null)
+  const [timelineVisible, setTimelineVisible] = useState(true)
   const { windows, openWindow, minimizeWindow } = useWindowManager()
   const prevHubIdRef = useRef(null)
   const skipMapMoveRef = useRef(false)
@@ -144,6 +145,8 @@ function AppContent({ darkMode, setDarkMode, mapMode, setMapMode }) {
           activeStepId={activeStepId}
           mapRef={mapViewRef}
           onCulturalFilter={setFilterCountries}
+          timelineVisible={timelineVisible}
+          onTimelineVisibleChange={setTimelineVisible}
         />
       </div>
 
@@ -167,17 +170,19 @@ function AppContent({ darkMode, setDarkMode, mapMode, setMapMode }) {
           onToggle={() => setSidebarCollapsed((c) => !c)}
         />
         <MapLegend mapRef={mapViewRef} darkMode={darkMode} />
-        <Timeline
-          steps={steps}
-          meta={meta}
-          darkMode={darkMode}
-          mapRef={mapViewRef}
-          onStepClick={handleStepClick}
-          activeStepId={activeStepId}
-          onHoverZone={setHighlightedZone}
-          onHoverFrac={setTimelineHoverFrac}
-          filterCountries={filterCountries}
-        />
+        {timelineVisible && (
+          <Timeline
+            steps={steps}
+            meta={meta}
+            darkMode={darkMode}
+            mapRef={mapViewRef}
+            onStepClick={handleStepClick}
+            activeStepId={activeStepId}
+            onHoverZone={setHighlightedZone}
+            onHoverFrac={setTimelineHoverFrac}
+            filterCountries={filterCountries}
+          />
+        )}
       </div>
 
       {/* Floating windows layer — pointer-events:none so map stays interactive */}
@@ -217,7 +222,7 @@ function AppContent({ darkMode, setDarkMode, mapMode, setMapMode }) {
       <ExportButton darkMode={darkMode} mapRef={mapViewRef} mapAreaRef={mapAreaRef} />
       <MapModeToggle darkMode={darkMode} onChange={setMapMode} />
       <DarkModeToggle onChange={setDarkMode} />
-      <WindowTaskbar darkMode={darkMode} sidebarWidth={sidebarWidth} />
+      <WindowTaskbar darkMode={darkMode} sidebarWidth={sidebarWidth} timelineVisible={timelineVisible} />
     </div>
   )
 }

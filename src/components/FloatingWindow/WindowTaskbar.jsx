@@ -6,7 +6,7 @@ import { TIMELINE_HEIGHT } from '../Timeline/Timeline'
  * Affiche les fenêtres minimisées. Clic = restaurer.
  * Se décale à droite de la sidebar.
  */
-export default function WindowTaskbar({ darkMode, sidebarWidth = 0 }) {
+export default function WindowTaskbar({ darkMode, sidebarWidth = 0, timelineVisible = true }) {
   const { windows, restoreWindow } = useWindowManager()
   const minimized = windows.filter((w) => w.minimized)
 
@@ -28,7 +28,7 @@ export default function WindowTaskbar({ darkMode, sidebarWidth = 0 }) {
   return (
     <div style={{
       position: 'fixed',
-      bottom: TIMELINE_HEIGHT + 24,
+      bottom: (timelineVisible ? TIMELINE_HEIGHT : 0) + 24,
       left: sidebarWidth + 12,
       right: 12,
       zIndex: 9999,

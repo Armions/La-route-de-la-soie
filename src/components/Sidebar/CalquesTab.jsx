@@ -76,6 +76,13 @@ const SECTIONS = [
         implemented: true,
         getMapLayers: () => ['steps-releve'],
       },
+      {
+        id: 'timeline',
+        label: 'Frise chronologique',
+        defaultOn: true,
+        implemented: true,
+        isAppToggle: true,
+      },
     ],
   },
   {
@@ -143,6 +150,31 @@ const SECTIONS = [
         implemented: true,
         getMapLayers: () => ['contour-lines', 'contour-labels', 'mountain-labels'],
       },
+      {
+        id: 'map-labels',
+        label: 'Noms et labels',
+        defaultOn: true,
+        implemented: true,
+        applyToggle: (map, isOn) => {
+          const vis = isOn ? 'visible' : 'none'
+          const style = map.getStyle()
+          if (!style) return
+          // Layers that must remain visible even when labels are hidden
+          const keep = new Set([
+            'steps-simple', 'steps-releve',
+            'capitals-marker', 'capitals-label',
+            'waterways-label-rivers', 'waterways-label-seas',
+            'climate-zones-label',
+            'silk-road-cities', 'silk-road-city-labels',
+            'contour-labels', 'mountain-labels',
+          ])
+          style.layers.forEach((layer) => {
+            if (layer.type === 'symbol' && !keep.has(layer.id)) {
+              try { map.setLayoutProperty(layer.id, 'visibility', vis) } catch (_) {}
+            }
+          })
+        },
+      },
     ],
   },
   {
@@ -204,10 +236,11 @@ function buildDefaults() {
 
 const DEFAULTS = buildDefaults()
 
-export default function CalquesTab({ darkMode, mapRef }) {
+export default function CalquesTab({ darkMode, mapRef, timelineVisible, onTimelineVisibleChange }) {
   const [toggles, setToggles] = useState(DEFAULTS.toggles)
   const [collapsed, setCollapsed] = useState(DEFAULTS.collapsed)
   const [selectedClimate, setSelectedClimate] = useState(null)
+  const [allOff, setAllOff] = useState(false)
   const text = darkMode ? '#d0d0d0' : '#333333'
   const textMuted = darkMode ? '#666' : '#999'
   const divider = darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
@@ -219,11 +252,22 @@ export default function CalquesTab({ darkMode, mapRef }) {
 
   function handleToggle(layerDef) {
     if (!layerDef.implemented) return
+
+    // App-level toggle (not a map layer)
+    if (layerDef.isAppToggle) {
+      if (layerDef.id === 'timeline' && onTimelineVisibleChange) {
+        onTimelineVisibleChange(!timelineVisible)
+        if (allOff) setAllOff(false)
+      }
+      return
+    }
+
     const map = mapRef.current?.getMap()
     if (!map) return
 
     const next = !toggles[layerDef.id]
     setToggles((prev) => ({ ...prev, [layerDef.id]: next }))
+    if (allOff && next) setAllOff(false)
 
     // Custom paint-based toggle
     if (layerDef.applyToggle) {
@@ -283,8 +327,69 @@ export default function CalquesTab({ darkMode, mapRef }) {
     setCollapsed((prev) => ({ ...prev, [sectionId]: !prev[sectionId] }))
   }
 
+  function applyLayerState(layerDef, isOn, map) {
+    if (layerDef.isAppToggle) return
+    if (layerDef.applyToggle) {
+      layerDef.applyToggle(map, isOn)
+      return
+    }
+    if (layerDef.getMapLayers) {
+      const vis = isOn ? 'visible' : 'none'
+      layerDef.getMapLayers(map).forEach((lid) => {
+        try { map.setLayoutProperty(lid, 'visibility', vis) } catch (_) {}
+      })
+    }
+  }
+
+  function handleDisableAll() {
+    const map = mapRef.current?.getMap()
+    if (!map) return
+    // Turn all map toggles OFF
+    const allFalse = {}
+    SECTIONS.forEach((s) => s.layers.forEach((l) => {
+      allFalse[l.id] = false
+      applyLayerState(l, false, map)
+    }))
+    setToggles(allFalse)
+    setSelectedClimate(null)
+    // Timeline OFF
+    if (onTimelineVisibleChange) onTimelineVisibleChange(false)
+    setAllOff(true)
+  }
+
+  function handleRestoreDefaults() {
+    const map = mapRef.current?.getMap()
+    if (!map) return
+    // Restore each layer to its default
+    SECTIONS.forEach((s) => s.layers.forEach((l) => {
+      applyLayerState(l, l.defaultOn, map)
+    }))
+    setToggles({ ...DEFAULTS.toggles })
+    setSelectedClimate(null)
+    // Timeline to default (ON)
+    if (onTimelineVisibleChange) onTimelineVisibleChange(true)
+    setAllOff(false)
+  }
+
   return (
     <div className="px-4 py-5 flex flex-col gap-5 h-full overflow-y-auto">
+      {/* Tout désactiver / Tout réactiver */}
+      <div className="flex justify-end px-1">
+        <button
+          onClick={allOff ? handleRestoreDefaults : handleDisableAll}
+          className="text-[11px] cursor-pointer"
+          style={{
+            color: textMuted,
+            textDecoration: 'underline',
+            textUnderlineOffset: 2,
+            background: 'none',
+            border: 'none',
+            padding: 0,
+          }}
+        >
+          {allOff ? 'Tout réactiver' : 'Tout désactiver'}
+        </button>
+      </div>
       {SECTIONS.map((section, si) => (
         <div key={section.id}>
           {si > 0 && <div style={{ borderTop: `1px solid ${divider}`, marginBottom: 16 }} />}
@@ -314,7 +419,9 @@ export default function CalquesTab({ darkMode, mapRef }) {
           {/* Section content */}
           {!collapsed[section.id] && (
             <div className="flex flex-col gap-0 mt-3">
-              {section.layers.map((layerDef, li) => (
+              {section.layers.map((layerDef, li) => {
+                const isOn = layerDef.id === 'timeline' ? timelineVisible : toggles[layerDef.id]
+                return (
                 <div key={layerDef.id}>
                   {li > 0 && <div style={{ borderTop: `1px solid ${divider}`, marginLeft: 8, marginRight: 8 }} />}
                   {/* Toggle row */}
@@ -334,12 +441,12 @@ export default function CalquesTab({ darkMode, mapRef }) {
                     {layerDef.implemented ? (
                       <div
                         role="switch"
-                        aria-checked={toggles[layerDef.id]}
+                        aria-checked={isOn}
                         className="relative inline-flex items-center rounded-full ml-3 shrink-0"
                         style={{
                           width: 34,
                           height: 18,
-                          backgroundColor: toggles[layerDef.id] ? trackOn : trackOff,
+                          backgroundColor: isOn ? trackOn : trackOff,
                           transition: 'background-color 200ms',
                         }}
                       >
@@ -348,9 +455,9 @@ export default function CalquesTab({ darkMode, mapRef }) {
                           style={{
                             width: 14,
                             height: 14,
-                            backgroundColor: toggles[layerDef.id] ? thumbOn : thumbOff,
+                            backgroundColor: isOn ? thumbOn : thumbOff,
                             boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                            transform: toggles[layerDef.id]
+                            transform: isOn
                               ? 'translateX(18px)'
                               : 'translateX(2px)',
                           }}
@@ -532,7 +639,8 @@ export default function CalquesTab({ darkMode, mapRef }) {
                     </div>
                   )}
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
