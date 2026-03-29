@@ -8,6 +8,7 @@ export default function ExportButton({ darkMode, mapRef, mapAreaRef }) {
   const [open, setOpen] = useState(false)
   const [fileName, setFileName] = useState('route-de-la-soie-export')
   const [exporting, setExporting] = useState(false)
+  const [exportingHillshade, setExportingHillshade] = useState(false)
   const [preview, setPreview] = useState(null)
 
   // Generate preview when modal opens
@@ -31,6 +32,23 @@ export default function ExportButton({ darkMode, mapRef, mapAreaRef }) {
     return () => window.removeEventListener('keydown', handler)
   }, [open])
 
+  // Compute export dimensions matching main map canvas ratio, fitting within 4K
+  function getExportDimensions() {
+    const map = mapRef?.current?.getMap?.()
+    if (!map) return { w: TARGET_W, h: TARGET_H }
+    const mainCanvas = map.getCanvas()
+    const ratio = mainCanvas.width / mainCanvas.height
+    let w, h
+    if (ratio >= TARGET_W / TARGET_H) {
+      w = TARGET_W
+      h = Math.round(TARGET_W / ratio)
+    } else {
+      h = TARGET_H
+      w = Math.round(TARGET_H * ratio)
+    }
+    return { w, h }
+  }
+
   async function handleExport() {
     const area = mapAreaRef?.current
     if (!area) return
@@ -41,8 +59,6 @@ export default function ExportButton({ darkMode, mapRef, mapAreaRef }) {
       '.mapboxgl-ctrl-bottom-left',   // Mapbox logo
       '.mapboxgl-ctrl-bottom-right',  // Mapbox attribution
     ]
-    // Also hide: GPS coords (fixed, zIndex 9999), sidebar toggle, export/mode/dark buttons
-    // These are fixed-position outside the capture area, but GPS coords are inside MapView
     const hiddenEls = []
 
     try {
@@ -64,16 +80,16 @@ export default function ExportButton({ darkMode, mapRef, mapAreaRef }) {
 
       // Hide sidebar toggle button (inside map area)
       area.querySelectorAll('button').forEach(el => {
-        // The sidebar toggle is the small chevron button at left:0
         if (el.style.position === 'absolute' && el.style.left === '0px') {
           hiddenEls.push({ el, prev: el.style.display })
           el.style.display = 'none'
         }
       })
 
-      // Compute scale for 4K output
+      // Use same dimensions as hillshade export for pixel-perfect alignment
+      const { w, h } = getExportDimensions()
       const areaRect = area.getBoundingClientRect()
-      const scale = Math.min(TARGET_W / areaRect.width, TARGET_H / areaRect.height)
+      const scale = Math.min(w / areaRect.width, h / areaRect.height)
 
       const canvas = await html2canvas(area, {
         scale,
@@ -83,16 +99,12 @@ export default function ExportButton({ darkMode, mapRef, mapAreaRef }) {
         logging: false,
         width: areaRect.width,
         height: areaRect.height,
-        // Ignore fixed-position elements outside the map area
         ignoreElements: (el) => {
-          // Skip the export modal itself
           if (el.dataset?.exportModal === 'true') return true
-          // Skip fixed buttons (export, map mode, dark mode) — they're outside mapArea
           if (el.style?.position === 'fixed' && el.style?.zIndex === '9999' && !area.contains(el)) return true
           return false
         },
         onclone: (doc, clonedEl) => {
-          // In the cloned document, ensure the Mapbox canvas is drawn
           const mapCanvas = mapRef?.current?.getMap?.()?.getCanvas()
           if (mapCanvas) {
             const clonedCanvas = clonedEl.querySelector('.mapboxgl-canvas')
@@ -104,7 +116,6 @@ export default function ExportButton({ darkMode, mapRef, mapAreaRef }) {
             }
           }
 
-          // Hide GPS coords in clone (via data attribute or style matching)
           clonedEl.querySelectorAll('div').forEach(el => {
             const s = el.style
             if (s.position === 'fixed' && s.fontFamily?.includes('monospace') && s.zIndex === '9999') {
@@ -112,14 +123,12 @@ export default function ExportButton({ darkMode, mapRef, mapAreaRef }) {
             }
           })
 
-          // Hide sidebar toggle in clone
           clonedEl.querySelectorAll('button').forEach(el => {
             if (el.style.position === 'absolute' && el.style.left === '0px') {
               el.style.display = 'none'
             }
           })
 
-          // Hide Mapbox controls in clone
           clonedEl.querySelectorAll('.mapboxgl-ctrl-bottom-left, .mapboxgl-ctrl-bottom-right').forEach(el => {
             el.style.display = 'none'
           })
@@ -140,9 +149,68 @@ export default function ExportButton({ darkMode, mapRef, mapAreaRef }) {
       console.error('Export error:', err)
       alert("Erreur lors de l'export. Veuillez réessayer.")
     } finally {
-      // Restore hidden elements
       hiddenEls.forEach(({ el, prev }) => { el.style.display = prev })
       setExporting(false)
+    }
+  }
+
+  async function handleExportHillshade() {
+    const map = mapRef?.current?.getMap?.()
+    if (!map) return
+    setExportingHillshade(true)
+
+    // Save state of all layers to restore after capture
+    const saved = []
+    let savedBgColor = null
+
+    try {
+      // 1. Save visibility of every layer, then hide all non-hillshade
+      const layers = map.getStyle().layers || []
+      for (const layer of layers) {
+        let vis = 'visible'
+        try { vis = map.getLayoutProperty(layer.id, 'visibility') || 'visible' } catch (_) {}
+        saved.push({ id: layer.id, type: layer.type, visibility: vis })
+
+        if (layer.type === 'hillshade') {
+          try { map.setLayoutProperty(layer.id, 'visibility', 'visible') } catch (_) {}
+        } else {
+          try { map.setLayoutProperty(layer.id, 'visibility', 'none') } catch (_) {}
+        }
+      }
+
+      // 2. Set background to white
+      try { savedBgColor = map.getPaintProperty('background', 'background-color') } catch (_) {}
+      try { map.setPaintProperty('background', 'background-color', '#ffffff') } catch (_) {}
+      try { map.setLayoutProperty('background', 'visibility', 'visible') } catch (_) {}
+
+      // 3. Wait for repaint (fixed delay — no idle event needed)
+      await new Promise(r => setTimeout(r, 500))
+
+      // 4. Capture the main map canvas as PNG
+      const dataUrl = map.getCanvas().toDataURL('image/png')
+
+      // 5. Download
+      const link = document.createElement('a')
+      link.download = (fileName.trim() || 'route-de-la-soie-export') + '-hillshade.png'
+      link.href = dataUrl
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      setOpen(false)
+    } catch (err) {
+      console.error('Hillshade export error:', err)
+      alert("Erreur export hillshade : " + err.message)
+    } finally {
+      // 6. Restore ALL layers
+      for (const { id, visibility } of saved) {
+        try { map.setLayoutProperty(id, 'visibility', visibility) } catch (_) {}
+      }
+      // Restore background color
+      if (savedBgColor != null) {
+        try { map.setPaintProperty('background', 'background-color', savedBgColor) } catch (_) {}
+      }
+      setExportingHillshade(false)
     }
   }
 
@@ -267,40 +335,77 @@ export default function ExportButton({ darkMode, mapRef, mapAreaRef }) {
             </div>
 
             {/* Buttons */}
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setOpen(false)}
+                  disabled={exporting || exportingHillshade}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 6,
+                    border: darkMode ? '1px solid #444' : '1px solid #ccc',
+                    background: 'transparent',
+                    color: darkMode ? '#aaa' : '#666',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleExport}
+                  disabled={exporting || exportingHillshade}
+                  style={{
+                    padding: '8px 20px',
+                    borderRadius: 6,
+                    border: 'none',
+                    background: exporting ? '#666' : '#2563eb',
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: exporting ? 'wait' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  {exporting && (
+                    <span
+                      style={{
+                        width: 14, height: 14,
+                        border: '2px solid rgba(255,255,255,0.3)',
+                        borderTopColor: '#fff',
+                        borderRadius: '50%',
+                        display: 'inline-block',
+                        animation: 'export-spin 0.8s linear infinite',
+                      }}
+                    />
+                  )}
+                  {exporting ? 'Export en cours...' : 'Exporter en JPEG 4K'}
+                </button>
+              </div>
+
+              {/* Hillshade export */}
               <button
-                onClick={() => setOpen(false)}
-                disabled={exporting}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: 6,
-                  border: darkMode ? '1px solid #444' : '1px solid #ccc',
-                  background: 'transparent',
-                  color: darkMode ? '#aaa' : '#666',
-                  fontSize: 13,
-                  cursor: 'pointer',
-                }}
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleExport}
-                disabled={exporting}
+                onClick={handleExportHillshade}
+                disabled={exporting || exportingHillshade}
                 style={{
                   padding: '8px 20px',
                   borderRadius: 6,
-                  border: 'none',
-                  background: exporting ? '#666' : '#2563eb',
-                  color: '#fff',
+                  border: darkMode ? '1px solid #555' : '1px solid #bbb',
+                  background: exportingHillshade ? '#666' : (darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'),
+                  color: exportingHillshade ? '#fff' : (darkMode ? '#ccc' : '#555'),
                   fontSize: 13,
                   fontWeight: 500,
-                  cursor: exporting ? 'wait' : 'pointer',
+                  cursor: exportingHillshade ? 'wait' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   gap: 6,
+                  width: '100%',
                 }}
               >
-                {exporting && (
+                {exportingHillshade && (
                   <span
                     style={{
                       width: 14, height: 14,
@@ -312,8 +417,14 @@ export default function ExportButton({ darkMode, mapRef, mapAreaRef }) {
                     }}
                   />
                 )}
-                {exporting ? 'Export en cours...' : 'Exporter en JPEG 4K'}
+                {exportingHillshade ? 'Export hillshade en cours...' : 'Exporter Hillshade (PNG)'}
               </button>
+              <div style={{
+                fontSize: 10, color: darkMode ? '#666' : '#aaa',
+                textAlign: 'center', marginTop: -4,
+              }}>
+                Relief seul sur fond blanc — superposable en mode Multiply
+              </div>
             </div>
           </div>
         </div>
