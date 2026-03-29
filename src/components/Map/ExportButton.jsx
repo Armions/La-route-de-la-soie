@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import html2canvas from 'html2canvas'
+import mapboxgl from 'mapbox-gl'
 
 const TARGET_W = 3840
 const TARGET_H = 2160
@@ -155,60 +156,137 @@ export default function ExportButton({ darkMode, mapRef, mapAreaRef }) {
   }
 
   async function handleExportHillshade() {
-    const map = mapRef?.current?.getMap?.()
-    if (!map) return
+    const mainMap = mapRef?.current?.getMap?.()
+    if (!mainMap) return
     setExportingHillshade(true)
 
-    // Save state of all layers to restore after capture
-    const saved = []
-    let savedBgColor = null
+    const TIMEOUT = 30000 // 30s pour charger les tuiles haute résolution
+
+    let container = null
+    let hiddenMap = null
 
     try {
-      // 1. Save visibility of every layer, then hide all non-hillshade
-      const layers = map.getStyle().layers || []
-      for (const layer of layers) {
-        let vis = 'visible'
-        try { vis = map.getLayoutProperty(layer.id, 'visibility') || 'visible' } catch (_) {}
-        saved.push({ id: layer.id, type: layer.type, visibility: vis })
+      // 1. Créer un div caché avec les MÊMES DIMENSIONS que le canvas principal
+      const mainCanvas = mainMap.getCanvas()
+      const cssW = mainCanvas.clientWidth
+      const cssH = mainCanvas.clientHeight
 
-        if (layer.type === 'hillshade') {
-          try { map.setLayoutProperty(layer.id, 'visibility', 'visible') } catch (_) {}
-        } else {
-          try { map.setLayoutProperty(layer.id, 'visibility', 'none') } catch (_) {}
+      container = document.createElement('div')
+      container.style.cssText = `
+        position: fixed; left: -99999px; top: -99999px;
+        width: ${cssW}px; height: ${cssH}px;
+        visibility: hidden; pointer-events: none;
+      `
+      document.body.appendChild(container)
+
+      // 2. Récupérer center/zoom/bearing/pitch de la carte principale
+      const center = mainMap.getCenter()
+      const zoom = mainMap.getZoom()
+      const bearing = mainMap.getBearing()
+      const pitch = mainMap.getPitch()
+
+      // 3. Créer la carte cachée avec un style minimal (hillshade only)
+      hiddenMap = new mapboxgl.Map({
+        container,
+        accessToken: mapboxgl.accessToken,
+        style: {
+          version: 8,
+          sources: {
+            'mapbox-dem': {
+              type: 'raster-dem',
+              url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+              tileSize: 512,
+              maxzoom: 14,
+            },
+          },
+          layers: [
+            {
+              id: 'background',
+              type: 'background',
+              paint: { 'background-color': '#ffffff' },
+            },
+            {
+              id: 'hillshade-export',
+              type: 'hillshade',
+              source: 'mapbox-dem',
+              paint: {
+                'hillshade-exaggeration': 1.0,
+                'hillshade-shadow-color': '#000000',
+                'hillshade-highlight-color': '#ffffff',
+                'hillshade-accent-color': '#000000',
+                'hillshade-illumination-direction': 315,
+                'hillshade-illumination-anchor': 'map',
+              },
+            },
+          ],
+        },
+        center,
+        zoom,
+        bearing,
+        pitch,
+        preserveDrawingBuffer: true,
+        renderWorldCopies: false,
+        interactive: false,
+        fadeDuration: 0,
+        attributionControl: false,
+      })
+
+      // 4. Forcer le cadrage exact après le load
+      await new Promise(resolve => {
+        hiddenMap.on('load', () => {
+          hiddenMap.jumpTo({ center, zoom, bearing, pitch })
+          resolve()
+        })
+      })
+
+      // 5. Attendre que TOUTES les tuiles soient chargées
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Timeout : tuiles non chargées après 30s'))
+        }, TIMEOUT)
+
+        function checkReady() {
+          if (hiddenMap.areTilesLoaded()) {
+            clearTimeout(timeout)
+            resolve()
+          } else {
+            // Réessayer au prochain idle
+            hiddenMap.once('idle', checkReady)
+          }
         }
-      }
 
-      // 2. Set background to white
-      try { savedBgColor = map.getPaintProperty('background', 'background-color') } catch (_) {}
-      try { map.setPaintProperty('background', 'background-color', '#ffffff') } catch (_) {}
-      try { map.setLayoutProperty('background', 'visibility', 'visible') } catch (_) {}
+        hiddenMap.once('idle', checkReady)
+      })
 
-      // 3. Wait for repaint (fixed delay — no idle event needed)
-      await new Promise(r => setTimeout(r, 500))
+      // 6. Capturer le canvas et redimensionner en 4K
+      const srcCanvas = hiddenMap.getCanvas()
+      const exportW = 3840
+      const exportH = Math.round(3840 * cssH / cssW)
+      const tempCanvas = document.createElement('canvas')
+      tempCanvas.width = exportW
+      tempCanvas.height = exportH
+      const ctx = tempCanvas.getContext('2d')
+      ctx.drawImage(srcCanvas, 0, 0, tempCanvas.width, tempCanvas.height)
 
-      // 4. Capture the main map canvas as PNG
-      const dataUrl = map.getCanvas().toDataURL('image/png')
+      const dataUrl = tempCanvas.toDataURL('image/png')
 
-      // 5. Download
+      // 7. Télécharger
       const link = document.createElement('a')
-      link.download = (fileName.trim() || 'route-de-la-soie-export') + '-hillshade.png'
+      link.download = (fileName.trim() || 'hillshade') + '.png'
       link.href = dataUrl
-      document.body.appendChild(link)
       link.click()
-      document.body.removeChild(link)
 
       setOpen(false)
-    } catch (err) {
-      console.error('Hillshade export error:', err)
-      alert("Erreur export hillshade : " + err.message)
+    } catch(e) {
+      console.error('Export hillshade error:', e)
+      alert('Erreur export hillshade: ' + e.message)
     } finally {
-      // 6. Restore ALL layers
-      for (const { id, visibility } of saved) {
-        try { map.setLayoutProperty(id, 'visibility', visibility) } catch (_) {}
+      // 8. Nettoyer la carte cachée
+      if (hiddenMap) {
+        try { hiddenMap.remove() } catch(_) {}
       }
-      // Restore background color
-      if (savedBgColor != null) {
-        try { map.setPaintProperty('background', 'background-color', savedBgColor) } catch (_) {}
+      if (container && container.parentNode) {
+        container.parentNode.removeChild(container)
       }
       setExportingHillshade(false)
     }
